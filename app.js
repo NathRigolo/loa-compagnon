@@ -209,7 +209,7 @@ function renderStats(){
     box.innerHTML = '<span class="stat-name">' + a.slice(0,3).toUpperCase() + '</span>'
       + '<span class="stat-val">' + (f.attributs[a] || 0) + '</span>';
     box.title = 'Lancer un Check avec ' + a;
-    box.onclick = () => openCheckBuilder(a);
+    box.onclick = () => openRoller(a);
     wrap.appendChild(box);
   });
 }
@@ -408,27 +408,103 @@ function openRollModal(title, q, sub){
 }
 function closeRollModal(){ $('rollModal').classList.remove('show'); }
 
-/* -------------------- Construction d'un Check --------------------------- */
-function openCheckBuilder(attrA){
-  const f = active();
-  $('checkAttrA').value = attrA || f.primary;
-  $('checkAttrB').value = '';
-  $('checkBoons').value = 0;
-  $('checkBanes').value = 0;
-  openModal('checkModal');
+/* -------------------- Roller (modal unifié CHECK / DÉS LIBRES) ---------- */
+let selectedAttrs = [];
+let currentTab = 'check';
+
+function openRoller(preselect){
+  selectedAttrs = (preselect && active().attributs[preselect] !== undefined) ? [preselect] : [];
+  $('rollBoons').value = 0;
+  $('rollBanes').value = 0;
+  switchTab('check');
+  renderRollerAttrs();
+  updatePool();
+  openModal('rollerModal');
 }
+
+function switchTab(name){
+  currentTab = name;
+  document.querySelectorAll('.roll-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.tab === name)
+  );
+  document.querySelectorAll('.tab-content').forEach(c =>
+    c.classList.toggle('active', c.id === 'tab-' + name)
+  );
+}
+
+function renderRollerAttrs(){
+  const wrap = $('rollerAttrs');
+  const f = active();
+  wrap.innerHTML = '';
+  ['Body','Gods','Mind','Shadow','Soul','World'].forEach(a => {
+    const cell = document.createElement('div');
+    cell.className = 'attr-cell'
+      + (f.primary === a ? ' primary' : '')
+      + (selectedAttrs.includes(a) ? ' selected' : '');
+    cell.innerHTML = '<span class="ac-name">' + a.slice(0,3).toUpperCase() + '</span>'
+      + '<span class="ac-val">' + (f.attributs[a] || 0) + '</span>';
+    cell.onclick = () => toggleAttr(a);
+    wrap.appendChild(cell);
+  });
+}
+
+function toggleAttr(attr){
+  const i = selectedAttrs.indexOf(attr);
+  if(i >= 0) selectedAttrs.splice(i, 1);
+  else {
+    if(selectedAttrs.length >= 2) selectedAttrs.shift(); // remplace le plus ancien
+    selectedAttrs.push(attr);
+  }
+  renderRollerAttrs();
+  updatePool();
+}
+
+function updatePool(){
+  const f = active();
+  const counter = $('poolCounter');
+  const hint = $('poolHint');
+  const btn = $('rollerLaunchBtn');
+  if(selectedAttrs.length === 0){
+    counter.textContent = '0D6';
+    hint.textContent = 'Sélectionne 1 ou 2 attributs';
+    btn.style.opacity = '.4';
+    btn.style.pointerEvents = 'none';
+  } else if(selectedAttrs.length === 1){
+    const v = f.attributs[selectedAttrs[0]] || 0;
+    counter.textContent = Math.max(1, v * 2) + 'D6';
+    hint.textContent = selectedAttrs[0] + ' ×2 (attribut seul)';
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = '';
+  } else {
+    const v = (f.attributs[selectedAttrs[0]] || 0) + (f.attributs[selectedAttrs[1]] || 0);
+    counter.textContent = Math.max(1, v) + 'D6';
+    hint.textContent = selectedAttrs[0] + ' + ' + selectedAttrs[1];
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = '';
+  }
+}
+
 function runCheck(){
   const f = active();
-  const a = $('checkAttrA').value;
-  const b = $('checkAttrB').value;
-  const boons = parseInt($('checkBoons').value) || 0;
-  const banes = parseInt($('checkBanes').value) || 0;
-  closeModal('checkModal');
+  if(selectedAttrs.length === 0) return;
 
-  const valA = f.attributs[a] || 0;
-  const valB = b ? (f.attributs[b] || 0) : valA;
-  const n = Math.max(1, valA + valB);
-  const label = b ? (a + ' + ' + b) : (a + ' (×2)');
+  const boons = parseInt($('rollBoons').value) || 0;
+  const banes = parseInt($('rollBanes').value) || 0;
+  closeModal('rollerModal');
+
+  let n, label;
+  if(selectedAttrs.length === 1){
+    const a = selectedAttrs[0];
+    const v = f.attributs[a] || 0;
+    n = Math.max(1, v * 2);
+    label = a + ' (×2)';
+  } else {
+    const a = selectedAttrs[0], b = selectedAttrs[1];
+    const va = f.attributs[a] || 0;
+    const vb = f.attributs[b] || 0;
+    n = Math.max(1, va + vb);
+    label = a + ' + ' + b;
+  }
   const net = boons - banes;
   const netLbl = net > 0 ? ' · Boon ' + net : (net < 0 ? ' · Bane ' + (-net) : '');
 
@@ -589,10 +665,11 @@ function useCDRecovery(){
 /* -------------------- Dés libres --------------------------------------- */
 function changeMult(delta){
   diceMult = Math.max(1, Math.min(10, diceMult + delta));
-  $('diceMult').textContent = '×' + diceMult;
+  $('freeMultLabel').textContent = '×' + diceMult;
 }
 function rollFreeDie(size){
   initAudio(); sfxConfirm();
+  closeModal('rollerModal');
   const label = diceMult + 'd' + size;
   openRollModal('DÉS LIBRES', label.toUpperCase(), '');
   const dice = [];

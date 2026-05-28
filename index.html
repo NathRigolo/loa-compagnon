@@ -92,28 +92,9 @@
 
   <!-- ===================== ACTIONS DU JEU ===================== -->
   <div class="actions">
-    <button class="btn" onclick="openCheckBuilder()">LANCER CHECK</button>
+    <button class="btn" onclick="openRoller()">LANCER</button>
     <button class="btn" onclick="shortRest()">REPOS COURT</button>
     <button class="btn" onclick="levelUp()">NIVEAU +</button>
-  </div>
-
-  <!-- ===================== DÉS LIBRES ===================== -->
-  <div class="dice-tray">
-    <div class="tray-h">DÉS LIBRES</div>
-    <div class="tray-row">
-      <div class="tray-mult">
-        <button onclick="changeMult(-1)">−</button>
-        <span id="diceMult">×1</span>
-        <button onclick="changeMult(1)">+</button>
-      </div>
-      <button class="die-btn" onclick="rollFreeDie(4)">d4</button>
-      <button class="die-btn" onclick="rollFreeDie(6)">d6</button>
-      <button class="die-btn" onclick="rollFreeDie(8)">d8</button>
-      <button class="die-btn" onclick="rollFreeDie(10)">d10</button>
-      <button class="die-btn" onclick="rollFreeDie(12)">d12</button>
-      <button class="die-btn" onclick="rollFreeDie(20)">d20</button>
-      <button class="die-btn" onclick="rollFreeDie(100)">d100</button>
-    </div>
   </div>
 
   <div class="foot" id="foot">LOA Compagnon · Phase 1</div>
@@ -144,34 +125,57 @@
     </div>
   </div>
 
-  <!-- Modal construction d'un Check -->
-  <div class="overlay" id="checkModal">
+  <!-- Modal LANCER (onglets CHECK et DÉS LIBRES) -->
+  <div class="overlay" id="rollerModal">
     <div class="modal-box">
-      <h3>NOUVEAU CHECK</h3>
-      <label>Attribut A</label>
-      <select id="checkAttrA">
-        <option>Body</option><option>Gods</option><option>Mind</option>
-        <option>Shadow</option><option>Soul</option><option>World</option>
-      </select>
-      <label>Attribut B (laisser vide pour doubler A)</label>
-      <select id="checkAttrB">
-        <option value="">—</option>
-        <option>Body</option><option>Gods</option><option>Mind</option>
-        <option>Shadow</option><option>Soul</option><option>World</option>
-      </select>
-      <div class="row">
-        <div>
-          <label>Boons</label>
-          <input type="number" id="checkBoons" value="0" min="0" max="5">
+      <h3>NOUVEAU JET</h3>
+      <div class="roll-tabs">
+        <button class="roll-tab active" data-tab="check" onclick="switchTab('check')">CHECK</button>
+        <button class="roll-tab" data-tab="free" onclick="switchTab('free')">DÉS LIBRES</button>
+      </div>
+
+      <div class="tab-content active" id="tab-check">
+        <div class="pool-head">
+          <span class="pool-label">POOL · 1 OU 2 ATTRIBUTS</span>
+          <span class="pool-counter" id="poolCounter">0D6</span>
         </div>
-        <div>
-          <label>Banes</label>
-          <input type="number" id="checkBanes" value="0" min="0" max="5">
+        <div class="attr-grid" id="rollerAttrs"></div>
+        <div class="pool-hint" id="poolHint">Sélectionne 1 ou 2 attributs</div>
+        <div class="row">
+          <div>
+            <label>Boons</label>
+            <input type="number" id="rollBoons" value="0" min="0" max="5">
+          </div>
+          <div>
+            <label>Banes</label>
+            <input type="number" id="rollBanes" value="0" min="0" max="5">
+          </div>
+        </div>
+        <div class="actions-row">
+          <button class="btn" onclick="closeModal('rollerModal')">FERMER</button>
+          <button class="btn" id="rollerLaunchBtn" onclick="runCheck()">LANCER</button>
         </div>
       </div>
-      <div class="actions-row">
-        <button class="btn" onclick="closeModal('checkModal')">ANNULER</button>
-        <button class="btn" onclick="runCheck()">LANCER</button>
+
+      <div class="tab-content" id="tab-free">
+        <div class="free-mult">
+          <button onclick="changeMult(-1)">−</button>
+          <span id="freeMultLabel">×1</span>
+          <button onclick="changeMult(1)">+</button>
+          <span class="ftxt">DÉS</span>
+        </div>
+        <div class="free-dice-grid">
+          <button class="die-btn" onclick="rollFreeDie(4)">d4</button>
+          <button class="die-btn" onclick="rollFreeDie(6)">d6</button>
+          <button class="die-btn" onclick="rollFreeDie(8)">d8</button>
+          <button class="die-btn" onclick="rollFreeDie(10)">d10</button>
+          <button class="die-btn" onclick="rollFreeDie(12)">d12</button>
+          <button class="die-btn" onclick="rollFreeDie(20)">d20</button>
+          <button class="die-btn" onclick="rollFreeDie(100)">d100</button>
+        </div>
+        <div class="actions-row">
+          <button class="btn" onclick="closeModal('rollerModal')">FERMER</button>
+        </div>
       </div>
     </div>
   </div>
