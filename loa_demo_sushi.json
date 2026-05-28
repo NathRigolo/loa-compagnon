@@ -1,0 +1,82 @@
+{
+  "_format": "loa-compagnon",
+  "_version": 1,
+  "_exported_at": "2026-05-28T00:00:00.000Z",
+  "fiche": {
+    "nom": "Sushi",
+    "kin": "Drakari",
+    "primary": "World",
+    "attributs": {
+      "Body": 3,
+      "Gods": 1,
+      "Mind": 1,
+      "Shadow": 2,
+      "Soul": 1,
+      "World": 2
+    },
+    "classes": [
+      {
+        "id": "imploaclassdemo1",
+        "nom": "Mage",
+        "type": "major",
+        "niveau": 1,
+        "color": "pink"
+      }
+    ],
+    "jobs": [],
+    "hp_current": 8,
+    "hp_max": 8,
+    "sp_current": 12,
+    "sp_max": 12,
+    "mp_current": 6,
+    "mp_max": 6,
+    "defense_current": 5,
+    "defense_max": 5,
+    "armure_bonus": 0,
+    "wounds_current": 0,
+    "wounds_max": 6,
+    "class_die_recovery_used": false,
+    "short_rests_taken": 0,
+    "short_rests_max": 3,
+    "limit_break_actif": null,
+    "limit_break_used": false,
+    "statuses": [],
+    "perks": [],
+    "sorts": [],
+    "melodies": [],
+    "moments": [],
+    "ways": [],
+    "tones": [],
+    "draviks": 50,
+    "xp_courant": 0,
+    "weapons": [],
+    "armors": [],
+    "tools": [
+      {
+        "id": "imploadtool1",
+        "nom": "Rations",
+        "attribute": "",
+        "quantity": 6,
+        "draviks": 0,
+        "description": "Vivres pour le voyage.",
+        "color": "teal"
+      },
+      {
+        "id": "imploadtool2",
+        "nom": "Kit d'érudit",
+        "attribute": "",
+        "quantity": 1,
+        "draviks": 0,
+        "description": "Sacoche de livres de référence, carte de ruines/bibliothèques, loupe, petit implement magique.",
+        "color": "pink"
+      }
+    ],
+    "waymates": [],
+    "apparence": "Taille : 180cm",
+    "histoire": "",
+    "liens": "",
+    "notes": "Fiche démo convertie depuis Drakonym. Stats de Mage niveau 1 à ajuster selon ton aspect (Elementalist, Voidwalker…).",
+    "solo_mode": false,
+    "_fiche_id": "imploaficheamo"
+  }
+}
