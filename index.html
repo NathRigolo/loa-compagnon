@@ -83,6 +83,13 @@
 
     <div class="statuses" id="statuses"></div>
 
+    <!-- Inventaire & Apprentissages -->
+    <div class="inv-section">
+      <div class="inv-h">INVENTAIRE &amp; APPRENTISSAGES</div>
+      <div class="inv-tabs" id="invTabs"></div>
+      <div class="item-list" id="invList"></div>
+    </div>
+
     <div class="log">
       <div class="log-h">DERNIER JET</div>
       <div class="roll" id="rolltray"><span class="q">—</span></div>
@@ -271,6 +278,127 @@
       <div class="actions-row">
         <button class="btn" onclick="closeModal('newFicheModal')">ANNULER</button>
         <button class="btn" onclick="createFiche()">CRÉER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal édition d'item (perk, sort, mélodie, arme, armure, objet) -->
+  <div class="overlay" id="itemModal">
+    <div class="modal-box">
+      <h3 id="itemModalTitle">NOUVEAU</h3>
+
+      <label>Titre</label>
+      <input type="text" id="itemTitle">
+
+      <label>Description</label>
+      <textarea id="itemDesc"></textarea>
+
+      <label>Couleur</label>
+      <div class="color-picker" id="colorPicker"></div>
+
+      <div id="itemSortFields" style="display:none">
+        <label>Aspect</label>
+        <input type="text" id="itemAspect" placeholder="Pyromancy, Necromancy, Verum…">
+        <div class="row">
+          <div>
+            <label>Coût SP</label>
+            <input type="number" id="itemSP" value="0" min="0">
+          </div>
+          <div>
+            <label>Coût AP</label>
+            <input type="number" id="itemAP" value="0" min="0">
+          </div>
+        </div>
+      </div>
+
+      <div id="itemMelodyFields" style="display:none">
+        <label>Coût MP</label>
+        <input type="number" id="itemMP" value="3" min="0">
+      </div>
+
+      <div id="itemWeaponFields" style="display:none">
+        <div class="row">
+          <div>
+            <label>Type</label>
+            <select id="itemWType">
+              <option>Blade</option>
+              <option>Breaker</option>
+              <option>Lance</option>
+              <option>Bow</option>
+            </select>
+          </div>
+          <div>
+            <label>Mains</label>
+            <select id="itemWHands">
+              <option value="1">1 main</option>
+              <option value="2">2 mains</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Portée</label>
+            <select id="itemWRange">
+              <option>Near</option>
+              <option>Close</option>
+              <option>Far</option>
+              <option>Very Far</option>
+            </select>
+          </div>
+          <div>
+            <label>Counter</label>
+            <input type="number" id="itemWCounter" value="0" min="0">
+          </div>
+        </div>
+        <label>Dégâts</label>
+        <input type="text" id="itemWDamage" placeholder="1d8 + Primary Fire">
+        <label>Propriétés</label>
+        <textarea id="itemWProperties" placeholder="On hit, Burning. Ignores Resistances…"></textarea>
+      </div>
+
+      <div id="itemArmorFields" style="display:none">
+        <div class="row">
+          <div>
+            <label>Catégorie</label>
+            <select id="itemAcat">
+              <option>Light</option>
+              <option>Medium</option>
+              <option>Heavy</option>
+              <option>Shield</option>
+            </select>
+          </div>
+          <div>
+            <label>DEF</label>
+            <input type="number" id="itemADef" value="0" min="0">
+          </div>
+          <div>
+            <label>Min Body</label>
+            <input type="number" id="itemAMinBody" value="0" min="0">
+          </div>
+        </div>
+        <label>Propriétés</label>
+        <textarea id="itemAProperties" placeholder="Resistance to Fire…"></textarea>
+      </div>
+
+      <div id="itemToolFields" style="display:none">
+        <div class="row">
+          <div>
+            <label>Quantité</label>
+            <input type="number" id="itemToolQty" value="1" min="0">
+          </div>
+          <div>
+            <label>Draviks</label>
+            <input type="number" id="itemToolDraviks" value="0" min="0">
+          </div>
+        </div>
+        <label>Attribut (bonus optionnel)</label>
+        <input type="text" id="itemToolAttribute" placeholder="—">
+      </div>
+
+      <div class="actions-row">
+        <button class="btn danger" id="itemDeleteBtn" onclick="deleteItem()">SUPPRIMER</button>
+        <button class="btn" onclick="closeModal('itemModal')">ANNULER</button>
+        <button class="btn" onclick="saveItem()">ENREGISTRER</button>
       </div>
     </div>
   </div>

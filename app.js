@@ -5,7 +5,7 @@
    compatible avec les conventions Drakonym Compagnon.
    ========================================================================== */
 
-const APP_VERSION = '0.2.0';
+const APP_VERSION = '0.3.0';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -194,6 +194,9 @@ function render(){
 
   /* statuts */
   renderStatuses();
+
+  /* inventaire */
+  renderInventory();
 
   /* fiche button */
   $('ficheBtnLabel').textContent = f.nom || '—';
@@ -892,6 +895,308 @@ function renderOptsList(){
     wrap.appendChild(row);
   });
   applyOpts();
+}
+
+/* -------------------- Inventaire & Apprentissages ---------------------- */
+let currentInvTab = 'perks';
+let editingItem = null; // { cat, item, isNew }
+
+const INV_CATS = {
+  perks:    { label: 'PERKS',    field: 'perks',    defaultColor: 'blue' },
+  sorts:    { label: 'SORTS',    field: 'sorts',    defaultColor: 'pink' },
+  melodies: { label: 'MELODIES', field: 'melodies', defaultColor: 'gold' },
+  weapons:  { label: 'ARMES',    field: 'weapons',  defaultColor: 'red'  },
+  armors:   { label: 'ARMURES',  field: 'armors',   defaultColor: 'blue' },
+  tools:    { label: 'OBJETS',   field: 'tools',    defaultColor: 'teal' }
+};
+const ITEM_COLORS = ['blue','gold','teal','pink','red','green','purple','gray'];
+
+function renderInventory(){
+  const f = active();
+  const tabsWrap = $('invTabs');
+  const listWrap = $('invList');
+
+  /* onglets avec compteur */
+  tabsWrap.innerHTML = '';
+  Object.entries(INV_CATS).forEach(([key, cfg]) => {
+    const tab = document.createElement('button');
+    tab.className = 'inv-tab' + (currentInvTab === key ? ' active' : '');
+    const count = (f[cfg.field] || []).length;
+    tab.textContent = cfg.label + (count > 0 ? ' (' + count + ')' : '');
+    tab.onclick = () => { currentInvTab = key; renderInventory(); };
+    tabsWrap.appendChild(tab);
+  });
+
+  /* items de l'onglet actif */
+  listWrap.innerHTML = '';
+  const cfg = INV_CATS[currentInvTab];
+  const items = f[cfg.field] || [];
+  if(items.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'empty-hint';
+    empty.textContent = 'Aucun élément dans ' + cfg.label.toLowerCase() + ' pour l\'instant.';
+    listWrap.appendChild(empty);
+  } else {
+    items.forEach(item => listWrap.appendChild(renderItemCard(currentInvTab, item)));
+  }
+
+  /* bouton + AJOUTER */
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-item-btn';
+  addBtn.textContent = '+ AJOUTER UN ' + cfg.label.replace(/S$/, '').replace(/ELODIES/, 'ÉLODIE');
+  // petit ajustement français : MELODIES → MÉLODIE, OBJETS → OBJET, etc.
+  if(currentInvTab === 'melodies') addBtn.textContent = '+ AJOUTER UNE MÉLODIE';
+  else if(currentInvTab === 'weapons') addBtn.textContent = '+ AJOUTER UNE ARME';
+  else if(currentInvTab === 'armors') addBtn.textContent = '+ AJOUTER UNE ARMURE';
+  else if(currentInvTab === 'tools') addBtn.textContent = '+ AJOUTER UN OBJET';
+  else if(currentInvTab === 'sorts') addBtn.textContent = '+ AJOUTER UN SORT';
+  else if(currentInvTab === 'perks') addBtn.textContent = '+ AJOUTER UN PERK';
+  addBtn.onclick = () => openItemEditor(currentInvTab, null);
+  listWrap.appendChild(addBtn);
+}
+
+function renderItemCard(cat, item){
+  const card = document.createElement('div');
+  card.className = 'item-card';
+
+  const colorBar = document.createElement('div');
+  colorBar.className = 'ic-color';
+  colorBar.setAttribute('data-c', item.color || 'gray');
+  card.appendChild(colorBar);
+
+  const body = document.createElement('div');
+  body.className = 'ic-body';
+
+  const title = document.createElement('div');
+  title.className = 'ic-title';
+  const eqIcon = item.equipped ? '<span class="eq">★</span>' : '';
+  const qty = (item.quantity && item.quantity > 1) ? ' ×' + item.quantity : '';
+  title.innerHTML = eqIcon + escapeHtml(item.titre || item.nom || 'Sans nom') + qty;
+  body.appendChild(title);
+
+  const metaTxt = buildItemMeta(cat, item);
+  if(metaTxt){
+    const m = document.createElement('div');
+    m.className = 'ic-meta';
+    m.textContent = metaTxt;
+    body.appendChild(m);
+  }
+
+  if(item.description){
+    const desc = document.createElement('div');
+    desc.className = 'ic-desc';
+    desc.textContent = item.description;
+    body.appendChild(desc);
+  }
+  if(item.properties){
+    const props = document.createElement('div');
+    props.className = 'ic-desc';
+    props.textContent = item.properties;
+    body.appendChild(props);
+  }
+
+  card.appendChild(body);
+
+  const actions = document.createElement('div');
+  actions.className = 'ic-actions';
+
+  if(cat === 'weapons' || cat === 'armors'){
+    const eqBtn = document.createElement('button');
+    eqBtn.className = 'eq-btn' + (item.equipped ? ' on' : '');
+    eqBtn.textContent = item.equipped ? '★' : '☆';
+    eqBtn.title = item.equipped ? 'Désequiper' : 'Équiper';
+    eqBtn.onclick = () => toggleEquipped(cat, item.id);
+    actions.appendChild(eqBtn);
+  }
+
+  const editBtn = document.createElement('button');
+  editBtn.textContent = '✎';
+  editBtn.title = 'Éditer';
+  editBtn.onclick = () => openItemEditor(cat, item);
+  actions.appendChild(editBtn);
+
+  const delBtn = document.createElement('button');
+  delBtn.textContent = '×';
+  delBtn.className = 'del';
+  delBtn.title = 'Supprimer';
+  delBtn.onclick = () => {
+    if(!confirm('Supprimer « ' + (item.titre || item.nom) + ' » ?')) return;
+    const f = active();
+    f[INV_CATS[cat].field] = (f[INV_CATS[cat].field] || []).filter(i => i.id !== item.id);
+    saveState(); render();
+  };
+  actions.appendChild(delBtn);
+
+  card.appendChild(actions);
+  return card;
+}
+
+function buildItemMeta(cat, item){
+  if(cat === 'sorts'){
+    const bits = [];
+    if(item.sp_cost) bits.push('SP ' + item.sp_cost);
+    if(item.ap_cost) bits.push('AP ' + item.ap_cost);
+    if(item.aspect) bits.push(item.aspect);
+    return bits.join(' · ');
+  }
+  if(cat === 'melodies'){
+    return 'MP ' + (item.mp_cost || 3);
+  }
+  if(cat === 'weapons'){
+    const bits = [];
+    if(item.type) bits.push(item.type);
+    if(item.hands) bits.push(item.hands == 1 ? '1 main' : '2 mains');
+    if(item.range) bits.push(item.range);
+    if(item.damage) bits.push(item.damage);
+    if(item.counter) bits.push('CV ' + item.counter);
+    return bits.join(' · ');
+  }
+  if(cat === 'armors'){
+    const bits = [];
+    if(item.category) bits.push(item.category);
+    if(item.def) bits.push('DEF ' + item.def);
+    if(item.min_body) bits.push('Min Body ' + item.min_body);
+    return bits.join(' · ');
+  }
+  if(cat === 'tools'){
+    const bits = [];
+    if(item.draviks) bits.push(item.draviks + ' Draviks');
+    if(item.attribute) bits.push(item.attribute);
+    return bits.join(' · ');
+  }
+  return '';
+}
+
+function toggleEquipped(cat, id){
+  const f = active();
+  const item = (f[INV_CATS[cat].field] || []).find(i => i.id === id);
+  if(!item) return;
+  item.equipped = !item.equipped;
+  saveState(); render();
+}
+
+function openItemEditor(cat, item){
+  editingItem = { cat, item: item || {}, isNew: !item };
+  const cfg = INV_CATS[cat];
+  $('itemModalTitle').textContent = (item ? 'ÉDITER · ' : 'NOUVEAU · ') + cfg.label;
+
+  const src = item || {};
+  $('itemTitle').value = src.titre || src.nom || '';
+  $('itemDesc').value = src.description || '';
+
+  /* color picker */
+  const cp = $('colorPicker');
+  cp.innerHTML = '';
+  ITEM_COLORS.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'color-pick' + ((src.color || cfg.defaultColor) === c ? ' active' : '');
+    b.setAttribute('data-c', c);
+    b.onclick = () => {
+      cp.querySelectorAll('.color-pick').forEach(p => p.classList.remove('active'));
+      b.classList.add('active');
+    };
+    cp.appendChild(b);
+  });
+
+  /* champs conditionnels */
+  ['Sort','Melody','Weapon','Armor','Tool'].forEach(t => $('item' + t + 'Fields').style.display = 'none');
+
+  if(cat === 'sorts'){
+    $('itemSortFields').style.display = '';
+    $('itemAspect').value = src.aspect || '';
+    $('itemSP').value = src.sp_cost || 0;
+    $('itemAP').value = src.ap_cost || 0;
+  } else if(cat === 'melodies'){
+    $('itemMelodyFields').style.display = '';
+    $('itemMP').value = src.mp_cost || 3;
+  } else if(cat === 'weapons'){
+    $('itemWeaponFields').style.display = '';
+    $('itemWType').value = src.type || 'Blade';
+    $('itemWHands').value = src.hands || 1;
+    $('itemWRange').value = src.range || 'Near';
+    $('itemWDamage').value = src.damage || '';
+    $('itemWCounter').value = src.counter || 0;
+    $('itemWProperties').value = src.properties || '';
+  } else if(cat === 'armors'){
+    $('itemArmorFields').style.display = '';
+    $('itemAcat').value = src.category || 'Light';
+    $('itemADef').value = src.def || 0;
+    $('itemAMinBody').value = src.min_body || 0;
+    $('itemAProperties').value = src.properties || '';
+  } else if(cat === 'tools'){
+    $('itemToolFields').style.display = '';
+    $('itemToolQty').value = src.quantity || 1;
+    $('itemToolDraviks').value = src.draviks || 0;
+    $('itemToolAttribute').value = src.attribute || '';
+  }
+
+  $('itemDeleteBtn').style.display = editingItem.isNew ? 'none' : '';
+  openModal('itemModal');
+}
+
+function saveItem(){
+  if(!editingItem) return;
+  const { cat, item, isNew } = editingItem;
+  const cfg = INV_CATS[cat];
+  const f = active();
+  if(isNew) item.id = newId();
+
+  /* champ titre selon convention Drakonym :
+     perks/sorts/melodies → "titre"
+     weapons/armors/tools → "nom" */
+  const titleField = (cat === 'perks' || cat === 'sorts' || cat === 'melodies') ? 'titre' : 'nom';
+  item[titleField] = $('itemTitle').value.trim() || 'Sans nom';
+  item.description = $('itemDesc').value.trim();
+  const activeColor = $('colorPicker').querySelector('.color-pick.active');
+  item.color = activeColor ? activeColor.getAttribute('data-c') : cfg.defaultColor;
+
+  if(cat === 'sorts'){
+    item.aspect = $('itemAspect').value.trim();
+    item.sp_cost = parseInt($('itemSP').value) || 0;
+    item.ap_cost = parseInt($('itemAP').value) || 0;
+  } else if(cat === 'melodies'){
+    item.mp_cost = parseInt($('itemMP').value) || 3;
+  } else if(cat === 'weapons'){
+    item.type = $('itemWType').value;
+    item.hands = parseInt($('itemWHands').value) || 1;
+    item.range = $('itemWRange').value;
+    item.damage = $('itemWDamage').value.trim();
+    item.counter = parseInt($('itemWCounter').value) || 0;
+    item.properties = $('itemWProperties').value.trim();
+    if(item.equipped === undefined) item.equipped = false;
+  } else if(cat === 'armors'){
+    item.category = $('itemAcat').value;
+    item.def = parseInt($('itemADef').value) || 0;
+    item.min_body = parseInt($('itemAMinBody').value) || 0;
+    item.properties = $('itemAProperties').value.trim();
+    if(item.equipped === undefined) item.equipped = false;
+  } else if(cat === 'tools'){
+    item.quantity = parseInt($('itemToolQty').value) || 1;
+    item.draviks = parseInt($('itemToolDraviks').value) || 0;
+    item.attribute = $('itemToolAttribute').value.trim();
+  }
+
+  if(isNew){
+    f[cfg.field] = f[cfg.field] || [];
+    f[cfg.field].push(item);
+  }
+  saveState();
+  closeModal('itemModal');
+  render();
+  toast((isNew ? 'Ajouté' : 'Enregistré') + ' : ' + (item.titre || item.nom));
+}
+
+function deleteItem(){
+  if(!editingItem || editingItem.isNew){ closeModal('itemModal'); return; }
+  const { cat, item } = editingItem;
+  if(!confirm('Supprimer « ' + (item.titre || item.nom) + ' » ?')) return;
+  const f = active();
+  f[INV_CATS[cat].field] = (f[INV_CATS[cat].field] || []).filter(i => i.id !== item.id);
+  saveState();
+  closeModal('itemModal');
+  render();
+  toast('Supprimé');
 }
 
 /* -------------------- Wiring ------------------------------------------- */

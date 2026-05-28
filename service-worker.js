@@ -2,7 +2,7 @@
    Cache les assets statiques pour fonctionner hors-ligne.
    Bumper CACHE_NAME quand on déploie une nouvelle version. */
 
-const CACHE_NAME = 'loa-compagnon-v2';
+const CACHE_NAME = 'loa-compagnon-v3';
 const ASSETS = [
   './',
   './index.html',
