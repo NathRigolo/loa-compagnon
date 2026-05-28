@@ -1086,7 +1086,7 @@ function renderInvSection(page, keys, currentKey, tabsId, listId){
 }
 
 function renderItemCard(cat, item){
-  /* Carte compacte façon Drakonym : couleur + titre + meta + chevron */
+  /* Carte compacte façon Drakonym : couleur + titre + meta + étoile (armes/armures) + chevron */
   const card = document.createElement('div');
   card.className = 'item-card';
   card.onclick = () => openItemEditor(cat, item);
@@ -1101,9 +1101,8 @@ function renderItemCard(cat, item){
 
   const title = document.createElement('div');
   title.className = 'ic-title';
-  const eqIcon = item.equipped ? '<span class="eq">★</span>' : '';
   const qty = (item.quantity && item.quantity > 1) ? ' ×' + item.quantity : '';
-  title.innerHTML = eqIcon + escapeHtml(item.titre || item.nom || 'Sans nom') + qty;
+  title.innerHTML = escapeHtml(item.titre || item.nom || 'Sans nom') + qty;
   body.appendChild(title);
 
   const metaTxt = buildItemMeta(cat, item);
@@ -1115,6 +1114,19 @@ function renderItemCard(cat, item){
   }
 
   card.appendChild(body);
+
+  /* Étoile équipée (armes et armures uniquement) */
+  if(cat === 'weapons' || cat === 'armors'){
+    const star = document.createElement('button');
+    star.className = 'ic-equip' + (item.equipped ? ' on' : '');
+    star.textContent = item.equipped ? '★' : '☆';
+    star.title = item.equipped ? 'Déséquiper' : 'Équiper';
+    star.onclick = (e) => {
+      e.stopPropagation();
+      toggleEquipped(cat, item.id);
+    };
+    card.appendChild(star);
+  }
 
   const chev = document.createElement('span');
   chev.className = 'ic-chev';
