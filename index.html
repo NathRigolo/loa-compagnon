@@ -49,6 +49,7 @@
           <span class="lbl">NIVEAU</span>
           <span class="lvl" id="heroLevel">1</span>
         </div>
+        <button class="limit-break-btn" id="limitBreakBtn" onclick="openLimitBreak()" style="display:none">★ LIMIT BREAK</button>
       </header>
 
       <!-- ====== PAGE FICHE ====== -->
@@ -383,6 +384,8 @@
     <div class="modal-box">
       <h3 id="itemModalTitle">NOUVEAU</h3>
 
+      <div class="item-action-bar" id="itemActionBar" style="display:none"></div>
+
       <label>Titre</label>
       <input type="text" id="itemTitle">
 
@@ -446,7 +449,51 @@
             <input type="number" id="itemWCounter" value="0" min="0">
           </div>
         </div>
-        <label>Dégâts</label>
+        <label>Formule de Base (utilisée pour les attaques)</label>
+        <div class="row">
+          <div>
+            <label style="font-size:7px;margin-top:0">Nb dés</label>
+            <input type="number" id="itemWBaseCount" value="1" min="1" max="10">
+          </div>
+          <div>
+            <label style="font-size:7px;margin-top:0">Taille</label>
+            <select id="itemWBaseSize">
+              <option value="4">d4</option>
+              <option value="6">d6</option>
+              <option value="8" selected>d8</option>
+              <option value="10">d10</option>
+              <option value="12">d12</option>
+              <option value="20">d20</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:7px;margin-top:0">Bonus plat</label>
+            <input type="number" id="itemWFlat" value="0" min="0">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>+ Primary ?</label>
+            <select id="itemWAddPrimary">
+              <option value="1" selected>Oui</option>
+              <option value="0">Non</option>
+            </select>
+          </div>
+          <div>
+            <label>Type de dégâts</label>
+            <select id="itemWDmgType">
+              <option>Physical</option>
+              <option>Cold</option>
+              <option>Fire</option>
+              <option>Light</option>
+              <option>Psychic</option>
+              <option>Void</option>
+              <option>Thunder</option>
+              <option>Wild</option>
+            </select>
+          </div>
+        </div>
+        <label>Dégâts (texte affiché)</label>
         <input type="text" id="itemWDamage" placeholder="1d8 + Primary Fire">
         <label>Propriétés</label>
         <textarea id="itemWProperties" placeholder="On hit, Burning. Ignores Resistances…"></textarea>
@@ -495,6 +542,68 @@
         <button class="btn danger" id="itemDeleteBtn" onclick="deleteItem()">SUPPRIMER</button>
         <button class="btn" onclick="closeModal('itemModal')">ANNULER</button>
         <button class="btn" onclick="saveItem()">ENREGISTRER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal ATTAQUE -->
+  <div class="overlay" id="attackModal">
+    <div class="modal-box">
+      <h3 id="atkTitle">ATTAQUER</h3>
+      <div class="atk-weapon-info" id="atkWeaponInfo">—</div>
+
+      <label>Type d'arme adverse</label>
+      <div class="atk-opp-type" id="atkOppTypes">
+        <button type="button" class="opp-type-btn active" data-type="">Aucune</button>
+        <button type="button" class="opp-type-btn" data-type="Blade">Blade</button>
+        <button type="button" class="opp-type-btn" data-type="Breaker">Breaker</button>
+        <button type="button" class="opp-type-btn" data-type="Lance">Lance</button>
+        <button type="button" class="opp-type-btn" data-type="Bow">Bow</button>
+      </div>
+
+      <div class="atk-triangle equal" id="atkTriangle">—</div>
+
+      <div class="row">
+        <div>
+          <label>DEF adverse</label>
+          <input type="number" id="atkDef" value="0" min="0">
+        </div>
+        <div>
+          <label>Affinity</label>
+          <select id="atkAffinity" onchange="updateWeakRow()">
+            <option value="normal">Normal</option>
+            <option value="weak">Weak (vulnérable)</option>
+            <option value="resist">Resist (½ dégâts)</option>
+            <option value="immune">Immune (0 dégâts)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="atkWeakRow" style="display:none">
+        <label>Bonus Weak (= attribut max de la créature)</label>
+        <input type="number" id="atkWeakBonus" value="0" min="0">
+      </div>
+
+      <div class="actions-row">
+        <button class="btn" onclick="closeModal('attackModal')">ANNULER</button>
+        <button class="btn" onclick="executeAttack()">⚔ ATTAQUER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal LIMIT BREAK -->
+  <div class="overlay" id="limitBreakModal">
+    <div class="modal-box">
+      <h3>★ LIMIT BREAK</h3>
+      <div class="lb-info" id="lbInfo">
+        Effet doublé si tu es en Overdrive (HP &lt; 50 % et LB non utilisé).
+        Restauré au Repos court.
+      </div>
+      <label>Description (optionnel)</label>
+      <textarea id="lbDesc" placeholder="Décris ton coup spécial…"></textarea>
+      <div class="actions-row">
+        <button class="btn" onclick="closeModal('limitBreakModal')">ANNULER</button>
+        <button class="btn" onclick="confirmLimitBreak()">★ DÉCLENCHER</button>
       </div>
     </div>
   </div>

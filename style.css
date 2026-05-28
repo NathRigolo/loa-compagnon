@@ -817,6 +817,147 @@ body.opt-scan .panel::after { opacity: 1; }
 }
 
 /* ==========================================================================
+   Combat : Limit Break button, Attack modal, Sidebar attack action
+   ========================================================================== */
+.limit-break-btn {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+  padding: 10px 14px;
+  font-family: var(--pixel);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #fff;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #ffae3a, #c4382a);
+  box-shadow:
+    0 0 0 2px var(--frame-dark),
+    0 0 0 3px var(--accent),
+    0 3px 0 var(--frame-dark),
+    0 0 18px rgba(248, 216, 120, .5);
+  animation: lbPulse 1.2s ease-in-out infinite;
+}
+@keyframes lbPulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--frame-dark), 0 0 0 3px var(--accent), 0 3px 0 var(--frame-dark), 0 0 14px rgba(248,216,120,.4); }
+  50%      { box-shadow: 0 0 0 2px var(--frame-dark), 0 0 0 3px var(--accent), 0 3px 0 var(--frame-dark), 0 0 28px rgba(248,216,120,.9); }
+}
+.limit-break-btn:active { transform: translateY(2px); }
+
+/* Modal d'attaque */
+.atk-weapon-info {
+  margin-bottom: 12px;
+  padding: 12px;
+  font-size: 12px;
+  text-align: center;
+  color: #fff;
+  border-radius: 4px;
+  background: rgba(248, 216, 120, .08);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  line-height: 1.5;
+}
+.atk-weapon-info b { color: var(--accent); }
+.atk-opp-type {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.opp-type-btn {
+  flex: 1;
+  min-width: 60px;
+  padding: 10px 6px;
+  font-family: var(--pixel);
+  font-size: 8px;
+  color: #fff;
+  background: linear-gradient(180deg, #3a63d6, #1d3da0);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px var(--frame-dark);
+  letter-spacing: .5px;
+}
+.opp-type-btn.active {
+  background: var(--accent);
+  color: var(--accent-shadow);
+  text-shadow: 1px 1px 0 rgba(255,255,255,.2);
+  box-shadow: inset 0 0 0 2px var(--frame-dark), 0 0 8px rgba(248,216,120,.4);
+}
+.atk-triangle {
+  margin: 10px 0;
+  padding: 9px;
+  font-family: var(--pixel);
+  font-size: 8px;
+  text-align: center;
+  border-radius: 4px;
+  background: rgba(8, 18, 60, .55);
+  box-shadow: inset 0 0 0 2px var(--frame-dark);
+  letter-spacing: .5px;
+}
+.atk-triangle.advantage { color: var(--accent); text-shadow: 1px 1px 0 var(--accent-shadow); }
+.atk-triangle.disadvantage { color: #e0533a; }
+.atk-triangle.equal { color: var(--ink-dim); }
+
+/* Bouton ATTAQUER dans la sidebar */
+.sb-equip-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+.sb-attack-btn {
+  flex: 1;
+  padding: 6px 8px;
+  font-family: var(--pixel);
+  font-size: 7px;
+  color: #fff;
+  background: linear-gradient(180deg, #c4382a, #7a1e15);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px var(--frame-dark), 0 1px 0 var(--frame-dark);
+  letter-spacing: .5px;
+}
+.sb-attack-btn:active { transform: translateY(1px); box-shadow: inset 0 0 0 2px var(--frame-dark); }
+
+/* Bouton ATTAQUER dans le modal d'arme + CAST/JOUER */
+.item-action-bar {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 10px;
+  border-radius: 4px;
+  background: rgba(8, 18, 60, .55);
+  box-shadow: inset 0 0 0 2px var(--frame-dark);
+}
+.item-action-bar button {
+  flex: 1;
+  padding: 11px;
+  font-family: var(--pixel);
+  font-size: 9px;
+  color: #fff;
+  background: linear-gradient(180deg, #c4382a, #7a1e15);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  box-shadow: 0 2px 0 var(--frame-dark);
+  letter-spacing: .5px;
+}
+.item-action-bar button.cast { background: linear-gradient(180deg, #9a4fd0, #5b2d80); }
+.item-action-bar button.melody { background: linear-gradient(180deg, #c9a227, #7a5a10); color: #2a1f00; }
+.item-action-bar button:active { transform: translateY(1px); box-shadow: none; }
+
+.lb-info {
+  padding: 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--ink-dim);
+  border-radius: 4px;
+  background: rgba(248, 216, 120, .08);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  line-height: 1.5;
+}
+
+/* ==========================================================================
    Bottom nav (mobile uniquement)
    ========================================================================== */
 .bottom-nav {

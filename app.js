@@ -3,7 +3,7 @@
    Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.4.0';
+const APP_VERSION = '0.5.0';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -191,8 +191,10 @@ function render(){
 
   const low = f.hp_current > 0 && f.hp_current < f.hp_max / 2;
   $('hpbar').classList.toggle('low', low);
-  $('heroHeader').classList.toggle('overdrive', low && !f.limit_break_used && f.hp_current > 0);
+  const isOverdrive = low && !f.limit_break_used && f.hp_current > 0;
+  $('heroHeader').classList.toggle('overdrive', isOverdrive);
   $('heroHeader').classList.toggle('dying', f.hp_current <= 0);
+  $('limitBreakBtn').style.display = isOverdrive ? '' : 'none';
 
   const cd = getClassDie(f);
   $('cddie').textContent = 'd' + cd.size;
@@ -281,6 +283,8 @@ function renderSidebar(){
     wWrap.innerHTML = '<div class="sb-empty">Aucune équipée</div>';
   } else {
     weq.forEach(w => {
+      const wrap = document.createElement('div');
+      wrap.style.marginBottom = '8px';
       const row = document.createElement('div');
       row.className = 'sb-equip';
       row.innerHTML = '<span class="eq-star">★</span>'
@@ -289,7 +293,16 @@ function renderSidebar(){
         + '<div class="eq-meta">' + escapeHtml(buildItemMeta('weapons', w)) + '</div>'
         + '</div>';
       row.onclick = () => openItemEditor('weapons', w);
-      wWrap.appendChild(row);
+      wrap.appendChild(row);
+      const atkBtn = document.createElement('button');
+      atkBtn.className = 'sb-attack-btn';
+      atkBtn.textContent = '⚔ ATTAQUER';
+      atkBtn.onclick = (e) => { e.stopPropagation(); openAttackModal(w); };
+      const actions = document.createElement('div');
+      actions.className = 'sb-equip-actions';
+      actions.appendChild(atkBtn);
+      wrap.appendChild(actions);
+      wWrap.appendChild(wrap);
     });
   }
 
@@ -1193,6 +1206,11 @@ function openItemEditor(cat, item){
     $('itemWDamage').value = src.damage || '';
     $('itemWCounter').value = src.counter || 0;
     $('itemWProperties').value = src.properties || '';
+    $('itemWBaseCount').value = src.base_die_count || 1;
+    $('itemWBaseSize').value = src.base_die_size || 8;
+    $('itemWFlat').value = src.flat_bonus || 0;
+    $('itemWAddPrimary').value = (src.add_primary === false) ? '0' : '1';
+    $('itemWDmgType').value = src.damage_type || 'Physical';
   } else if(cat === 'armors'){
     $('itemArmorFields').style.display = '';
     $('itemAcat').value = src.category || 'Light';
@@ -1207,6 +1225,37 @@ function openItemEditor(cat, item){
   }
 
   $('itemDeleteBtn').style.display = editingItem.isNew ? 'none' : '';
+
+  /* Barre d'action de combat (ATTAQUER / LANCER / JOUER) */
+  const bar = $('itemActionBar');
+  bar.innerHTML = '';
+  bar.style.display = 'none';
+  if(!editingItem.isNew){
+    if(cat === 'weapons'){
+      const b = document.createElement('button');
+      b.textContent = '⚔ ATTAQUER';
+      b.onclick = () => { closeModal('itemModal'); openAttackModal(item); };
+      bar.appendChild(b);
+      bar.style.display = '';
+    } else if(cat === 'sorts'){
+      const b = document.createElement('button');
+      b.className = 'cast';
+      const cost = item.sp_cost || 0;
+      b.textContent = '✦ LANCER (SP ' + cost + ')';
+      b.onclick = () => { closeModal('itemModal'); castSpell(item); };
+      bar.appendChild(b);
+      bar.style.display = '';
+    } else if(cat === 'melodies'){
+      const b = document.createElement('button');
+      b.className = 'melody';
+      const cost = item.mp_cost || 3;
+      b.textContent = '♪ JOUER (MP ' + cost + ')';
+      b.onclick = () => { closeModal('itemModal'); playMelody(item); };
+      bar.appendChild(b);
+      bar.style.display = '';
+    }
+  }
+
   openModal('itemModal');
 }
 
@@ -1236,6 +1285,11 @@ function saveItem(){
     item.damage = $('itemWDamage').value.trim();
     item.counter = parseInt($('itemWCounter').value) || 0;
     item.properties = $('itemWProperties').value.trim();
+    item.base_die_count = parseInt($('itemWBaseCount').value) || 1;
+    item.base_die_size  = parseInt($('itemWBaseSize').value) || 8;
+    item.flat_bonus     = parseInt($('itemWFlat').value) || 0;
+    item.add_primary    = $('itemWAddPrimary').value === '1';
+    item.damage_type    = $('itemWDmgType').value || 'Physical';
     if(item.equipped === undefined) item.equipped = false;
   } else if(cat === 'armors'){
     item.category = $('itemAcat').value;
@@ -1269,6 +1323,339 @@ function deleteItem(){
   closeModal('itemModal');
   render();
   toast('Supprimé');
+}
+
+/* -------------------- Combat : Attaque, Triangle, Affinity -------------- */
+let attackCtx = null;
+
+/* Triangle d'armes (Blade > Breaker > Lance > Blade, Bow hors triangle) */
+function weaponTriangle(my, opp){
+  if(!my || !opp) return 'none';
+  if(my === 'Bow' || opp === 'Bow') return 'out';
+  if(my === opp) return 'equal';
+  const wins = { Blade: 'Breaker', Breaker: 'Lance', Lance: 'Blade' };
+  if(wins[my] === opp) return 'advantage';
+  return 'disadvantage';
+}
+
+function openAttackModal(weapon){
+  attackCtx = { weapon, oppType: '' };
+  const f = active();
+  const baseSize  = weapon.base_die_size || 8;
+  const baseCount = weapon.base_die_count || 1;
+  const flat      = weapon.flat_bonus || 0;
+  const addPrim   = weapon.add_primary !== false;
+  const primary   = addPrim ? (f.attributs[f.primary] || 0) : 0;
+  const dmgType   = weapon.damage_type || 'Physical';
+
+  /* Formule lisible */
+  let formula = baseCount + 'd' + baseSize;
+  if(flat) formula += ' + ' + flat;
+  if(addPrim) formula += ' + <b>' + f.primary + '</b>(' + primary + ')';
+
+  $('atkTitle').textContent = 'ATTAQUER · ' + (weapon.nom || 'ARME');
+  $('atkWeaponInfo').innerHTML = formula + ' · <b>' + escapeHtml(dmgType) + '</b>'
+    + '<br><span style="opacity:.7">' + escapeHtml(weapon.type || '—') + ' · ' + escapeHtml(weapon.range || 'Near') + '</span>';
+
+  /* Reset */
+  document.querySelectorAll('.opp-type-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.type === '');
+    b.onclick = () => setOppType(b.dataset.type);
+  });
+  $('atkDef').value = 0;
+  $('atkAffinity').value = 'normal';
+  $('atkWeakBonus').value = 0;
+  $('atkWeakRow').style.display = 'none';
+  updateTriangleDisplay();
+
+  openModal('attackModal');
+}
+
+function setOppType(type){
+  attackCtx.oppType = type;
+  document.querySelectorAll('.opp-type-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.type === type)
+  );
+  updateTriangleDisplay();
+}
+
+function updateTriangleDisplay(){
+  const my = attackCtx.weapon.type;
+  const opp = attackCtx.oppType;
+  const adv = weaponTriangle(my, opp);
+  const ind = $('atkTriangle');
+  const base = attackCtx.weapon.base_die_size || 8;
+  if(opp === ''){
+    ind.className = 'atk-triangle equal';
+    ind.textContent = '— SÉLECTIONNE L\'ARME ADVERSE —';
+  } else if(adv === 'advantage'){
+    ind.className = 'atk-triangle advantage';
+    ind.textContent = '★ AVANTAGE · CRIT BASE DIE ÉTENDU À ' + (base-1) + '-' + base;
+  } else if(adv === 'disadvantage'){
+    ind.className = 'atk-triangle disadvantage';
+    ind.textContent = '▼ DÉSAVANTAGE · AUCUN EFFET';
+  } else if(adv === 'equal'){
+    ind.className = 'atk-triangle equal';
+    ind.textContent = '= ÉGALITÉ · AUCUN BONUS';
+  } else if(adv === 'out'){
+    ind.className = 'atk-triangle equal';
+    ind.textContent = '○ HORS TRIANGLE (Bow) · AUCUN BONUS';
+  }
+}
+
+function updateWeakRow(){
+  $('atkWeakRow').style.display = $('atkAffinity').value === 'weak' ? '' : 'none';
+}
+
+function executeAttack(){
+  const w = attackCtx.weapon;
+  const f = active();
+  const opp = {
+    type:      attackCtx.oppType,
+    def:       parseInt($('atkDef').value) || 0,
+    affinity:  $('atkAffinity').value,
+    weakBonus: parseInt($('atkWeakBonus').value) || 0
+  };
+  const adv = weaponTriangle(w.type, opp.type);
+  closeModal('attackModal');
+
+  const result = doAttackResolve(w, opp, adv, f);
+  showAttackResult(w, opp, result, adv);
+}
+
+function doAttackResolve(weapon, opp, triangleAdv, fiche){
+  const base      = weapon.base_die_size || 8;
+  const baseCount = weapon.base_die_count || 1;
+  const flat      = weapon.flat_bonus || 0;
+  const addPrim   = weapon.add_primary !== false;
+  const primary   = addPrim ? (fiche.attributs[fiche.primary] || 0) : 0;
+
+  /* Premier jet du Base Die */
+  const baseRolls = [];
+  const firstRoll = rollD(base);
+  baseRolls.push(firstRoll);
+
+  /* MISS sur 1 */
+  if(firstRoll === 1){
+    return { miss: true, baseRolls };
+  }
+
+  /* CRIT : max ou (avec Triangle avantage) max-1 sur le PREMIER jet uniquement */
+  const isFirstCrit = (firstRoll === base) || (triangleAdv === 'advantage' && firstRoll === base - 1);
+
+  /* Si crit, on relance le Base Die. Les jets suivants n'ont PAS le bonus Triangle. */
+  if(isFirstCrit){
+    let extra = rollD(base);
+    baseRolls.push(extra);
+    /* Explosion en chaîne tant qu'on fait max (normal range) */
+    while(extra === base){
+      extra = rollD(base);
+      baseRolls.push(extra);
+    }
+  }
+
+  /* Dés de base additionnels (e.g. 2d8) — pas d'explosion sur ceux-ci */
+  const addlRolls = [];
+  for(let i = 1; i < baseCount; i++){
+    addlRolls.push(rollD(base));
+  }
+
+  /* Somme */
+  const baseSum = baseRolls.reduce((a,b) => a+b, 0);
+  const addlSum = addlRolls.reduce((a,b) => a+b, 0);
+  const rawDamage = baseSum + addlSum + flat + primary;
+
+  /* DEF */
+  const afterDef = Math.max(0, rawDamage - opp.def);
+  const defBroken = opp.def > 0 && rawDamage >= opp.def;
+
+  /* Affinity (après DEF) */
+  let finalDamage = afterDef;
+  if(opp.affinity === 'weak')        finalDamage = afterDef + opp.weakBonus;
+  else if(opp.affinity === 'resist') finalDamage = Math.floor(afterDef / 2);
+  else if(opp.affinity === 'immune') finalDamage = 0;
+
+  return {
+    miss: false,
+    crit: isFirstCrit,
+    baseRolls,
+    addlRolls,
+    flat, primary,
+    primaryAttr: fiche.primary,
+    rawDamage,
+    afterDef,
+    defBroken,
+    affinity: opp.affinity,
+    weakBonus: opp.weakBonus,
+    finalDamage,
+    counterValue: weapon.counter || 0
+  };
+}
+
+function showAttackResult(weapon, opp, result, triangleAdv){
+  const base = weapon.base_die_size || 8;
+  initAudio(); sfxConfirm();
+
+  const subtitle = (weapon.damage_type || 'Physical')
+    + (opp.type ? ' · vs ' + opp.type : '')
+    + (triangleAdv === 'advantage' ? ' · ★' : '');
+  openRollModal('ATTAQUE · ' + (weapon.nom || ''), 'BASE ' + (weapon.base_die_count || 1) + 'd' + base, subtitle);
+
+  const tray = $('rmTray');
+  const STAG = 180, ROLL = 600;
+  const allValues = [...result.baseRolls, ...result.addlRolls];
+  const faces = allValues.map((v, i) => spawnDie(tray, v, i * STAG, ROLL, base));
+
+  /* Hit/miss markers */
+  result.baseRolls.forEach((v, i) => {
+    setTimeout(() => {
+      if(result.miss && i === 0){
+        faces[i].style.background = '#e0533a';
+        faces[i].style.color = '#fff';
+      } else if(v === base || (i === 0 && result.crit && v === base - 1)){
+        faces[i].classList.add('hit');
+        beep(990 + i*100, .08);
+      }
+    }, i * STAG + ROLL + 220);
+  });
+
+  const lastSettle = allValues.length * STAG + ROLL + 220;
+  setTimeout(() => {
+    const res = $('rmRes');
+    if(result.miss){
+      res.className = 'roll-res-big banner';
+      res.innerHTML = 'COUP MANQUÉ<small>1 SUR LE BASE DIE</small>';
+      $('rmOk').classList.add('ready');
+      logRoll('Attaque · ' + (weapon.nom || ''), 'MISS', { fail: true });
+      const lt = $('rolltray');
+      lt.innerHTML = '<span class="q">Attaque · ' + escapeHtml(weapon.nom || '') + '</span>'
+        + '<span class="face" style="background:#e0533a">1</span>';
+      $('rollres').className = 'res';
+      $('rollres').innerHTML = '<span>Coup manqué</span>';
+      return;
+    }
+
+    /* Construction du breakdown */
+    let bd = '<b>' + result.baseRolls.join(' + ') + '</b>';
+    if(result.crit) bd += ' <span style="color:var(--accent)">✦CRIT</span>';
+    if(result.addlRolls.length) bd += ' + ' + result.addlRolls.join(' + ');
+    if(result.flat) bd += ' + ' + result.flat;
+    if(result.primary) bd += ' + ' + result.primary + ' (' + result.primaryAttr + ')';
+    bd += ' = <b>' + result.rawDamage + '</b>';
+    if(opp.def) bd += '<br>DEF −' + opp.def + ' → <b>' + result.afterDef + '</b>';
+    if(result.defBroken) bd += ' <span style="color:#ff8a6a">✦ DEF BROKEN</span>';
+    if(result.affinity === 'weak')        bd += '<br>Weak +' + result.weakBonus + ' → <b>' + result.finalDamage + '</b>';
+    else if(result.affinity === 'resist') bd += '<br>Resist ÷2 → <b>' + result.finalDamage + '</b>';
+    else if(result.affinity === 'immune') bd += '<br>Immune → <b>0</b>';
+
+    res.className = 'roll-res-big banner';
+    res.innerHTML = result.finalDamage + ' DÉGÂTS' + (result.crit ? ' ✦' : '')
+      + '<small>' + bd + '</small>';
+    $('rmOk').classList.add('ready');
+
+    if(result.crit){
+      sfxCrit();
+      const box = document.querySelector('#rollModal .roll-box');
+      box.classList.remove('crit'); void box.offsetWidth; box.classList.add('crit');
+    }
+
+    /* Log + dernier jet sur la fiche */
+    const summary = result.finalDamage + ' dégâts'
+      + (result.crit ? ' (crit)' : '')
+      + (result.defBroken ? ' · DEF Broken' : '');
+    logRoll('Attaque · ' + (weapon.nom || ''), summary, { crit: result.crit });
+
+    const lt = $('rolltray');
+    lt.innerHTML = '<span class="q">Attaque · ' + escapeHtml(weapon.nom || '') + '</span>';
+    result.baseRolls.forEach((v, i) => {
+      const f = document.createElement('span');
+      f.className = 'face' + (v === base ? ' hit' : '');
+      f.textContent = v;
+      lt.appendChild(f);
+    });
+    result.addlRolls.forEach(v => {
+      const f = document.createElement('span');
+      f.className = 'face';
+      f.textContent = v;
+      lt.appendChild(f);
+    });
+    $('rollres').className = 'res';
+    $('rollres').innerHTML = result.finalDamage + ' dégâts <span>'
+      + (result.crit ? '· CRIT ' : '')
+      + (result.defBroken ? '· DEF Break' : '') + '</span>';
+  }, lastSettle + 600);
+}
+
+/* -------------------- Limit Break -------------------------------------- */
+function openLimitBreak(){
+  const f = active();
+  if(f.limit_break_used){
+    toast('Limit Break déjà utilisé. Prends un Repos court pour le récupérer.');
+    return;
+  }
+  const isOverdrive = f.hp_current > 0 && f.hp_current < f.hp_max / 2;
+  $('lbInfo').innerHTML = isOverdrive
+    ? '<b style="color:var(--accent)">★ OVERDRIVE actif</b><br>Les dégâts et effets de ton Limit Break sont <b>doublés</b>. Il sera consommé même si la rencontre se termine.'
+    : 'HP au-dessus de 50%. Effet normal. Restauré au prochain Repos court.';
+  $('lbDesc').value = '';
+  openModal('limitBreakModal');
+}
+function confirmLimitBreak(){
+  const f = active();
+  const desc = $('lbDesc').value.trim();
+  f.limit_break_used = true;
+  const isOverdrive = f.hp_current > 0 && f.hp_current < f.hp_max / 2;
+  saveState();
+  closeModal('limitBreakModal');
+  render();
+  initAudio(); sfxLevel();
+  toast('★ LIMIT BREAK ' + (isOverdrive ? '(Overdrive ×2)' : '') + ' — décris ton coup');
+  logRoll('★ Limit Break' + (isOverdrive ? ' (Overdrive)' : ''),
+    desc || 'Coup spécial', { crit: true });
+}
+
+/* -------------------- Sorts (auto-déduction SP) ------------------------ */
+function castSpell(sort){
+  const f = active();
+  const cost = sort.sp_cost || 0;
+  if(f.sp_current < cost){
+    toast('Pas assez de SP (' + f.sp_current + '/' + cost + ')');
+    return;
+  }
+  if(!confirm('Lancer ' + (sort.titre || 'le sort') + ' ? (-' + cost + ' SP)')) return;
+  f.sp_current = Math.max(0, f.sp_current - cost);
+  saveState(); render();
+  toast('✦ ' + (sort.titre || 'Sort') + ' lancé · −' + cost + ' SP');
+  logRoll('Sort · ' + (sort.titre || ''), '−' + cost + ' SP');
+  /* Si le sort a un Aspect, on ouvre le Check builder pré-rempli (Battlecast) */
+  if(sort.aspect){
+    const aspectAttr = aspectAttribute(sort.aspect);
+    if(aspectAttr){
+      setTimeout(() => openRoller(aspectAttr), 300);
+    }
+  }
+}
+function aspectAttribute(aspect){
+  const map = {
+    'Arcanum': 'Mind', 'Divine': 'Gods', 'Inheric': 'Body',
+    'Radiant': 'Soul', 'Untamed': 'World', 'Voidcraft': 'Shadow'
+  };
+  return map[aspect] || null;
+}
+
+/* -------------------- Mélodies (auto-déduction MP) --------------------- */
+function playMelody(melody){
+  const f = active();
+  const cost = melody.mp_cost || 3;
+  if(f.mp_current < cost){
+    toast('Pas assez de MP (' + f.mp_current + '/' + cost + ')');
+    return;
+  }
+  if(!confirm('Jouer ' + (melody.titre || 'la mélodie') + ' ? (-' + cost + ' MP)')) return;
+  f.mp_current = Math.max(0, f.mp_current - cost);
+  saveState(); render();
+  toast('♪ ' + (melody.titre || 'Mélodie') + ' jouée · −' + cost + ' MP');
+  logRoll('Mélodie · ' + (melody.titre || ''), '−' + cost + ' MP');
 }
 
 /* -------------------- Wiring ------------------------------------------- */
