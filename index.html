@@ -14,11 +14,7 @@
 
   <!-- ===================== TOOLBAR ===================== -->
   <div class="toolbar">
-    <div class="fiche-select" id="ficheSelect">
-      <span class="name-lbl" id="ficheLabel">—</span>
-      <span class="chev">▼</span>
-      <div class="fiche-dropdown" id="ficheDropdown"></div>
-    </div>
+    <button class="fiche-btn" id="ficheBtn"><span id="ficheBtnLabel">—</span></button>
     <button class="icon-btn" id="btnEdit"     title="Éditer la fiche">✎</button>
     <button class="icon-btn" id="btnImport"   title="Importer JSON">↓</button>
     <button class="icon-btn" id="btnExport"   title="Exporter JSON">↑</button>
@@ -44,6 +40,10 @@
       </div>
     </div>
 
+    <!-- STATS (6 attributs, Primary doré, clic = check rapide) -->
+    <div class="stats-row" id="statsRow"></div>
+
+    <!-- JAUGES -->
     <div class="gauges">
       <div class="gauge"><span class="lbl">HP</span>
         <div class="bar hp" id="hpbar"><div class="fill" id="hpfill"></div></div>
@@ -90,18 +90,37 @@
     </div>
   </div>
 
-  <!-- ===================== BOUTONS D'ACTION ===================== -->
+  <!-- ===================== ACTIONS DU JEU ===================== -->
   <div class="actions">
     <button class="btn" onclick="openCheckBuilder()">LANCER CHECK</button>
     <button class="btn" onclick="shortRest()">REPOS COURT</button>
     <button class="btn" onclick="levelUp()">NIVEAU +</button>
   </div>
 
+  <!-- ===================== DÉS LIBRES ===================== -->
+  <div class="dice-tray">
+    <div class="tray-h">DÉS LIBRES</div>
+    <div class="tray-row">
+      <div class="tray-mult">
+        <button onclick="changeMult(-1)">−</button>
+        <span id="diceMult">×1</span>
+        <button onclick="changeMult(1)">+</button>
+      </div>
+      <button class="die-btn" onclick="rollFreeDie(4)">d4</button>
+      <button class="die-btn" onclick="rollFreeDie(6)">d6</button>
+      <button class="die-btn" onclick="rollFreeDie(8)">d8</button>
+      <button class="die-btn" onclick="rollFreeDie(10)">d10</button>
+      <button class="die-btn" onclick="rollFreeDie(12)">d12</button>
+      <button class="die-btn" onclick="rollFreeDie(20)">d20</button>
+      <button class="die-btn" onclick="rollFreeDie(100)">d100</button>
+    </div>
+  </div>
+
   <div class="foot" id="foot">LOA Compagnon · Phase 1</div>
 
   <!-- ===================== MODALS ===================== -->
 
-  <!-- Modal jet de dés -->
+  <!-- Modal jet de dés (modal d'animation pour tous les jets) -->
   <div class="overlay" id="rollModal">
     <div class="roll-box">
       <div class="roll-title" id="rmTitle">JET DE DÉS</div>
@@ -110,6 +129,18 @@
       <div class="roll-tray" id="rmTray"></div>
       <div class="roll-res-big" id="rmRes">—</div>
       <div class="roll-ok" id="rmOk" onclick="closeRollModal()">VALIDER</div>
+    </div>
+  </div>
+
+  <!-- Modal : choisir / créer / supprimer fiches -->
+  <div class="overlay" id="fichesModal">
+    <div class="modal-box">
+      <h3>FICHES</h3>
+      <div class="fiches-list" id="fichesList"></div>
+      <div class="actions-row">
+        <button class="btn" onclick="closeModal('fichesModal')">FERMER</button>
+        <button class="btn" onclick="closeModal('fichesModal');openModal('newFicheModal');document.getElementById('newFicheName').value='';document.getElementById('newFicheName').focus();">+ NOUVELLE</button>
+      </div>
     </div>
   </div>
 

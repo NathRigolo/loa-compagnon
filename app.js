@@ -1,16 +1,11 @@
 /* ==========================================================================
-   LOA COMPAGNON — Logique principale
+   LOA COMPAGNON — Logique principale (v2)
    ==========================================================================
-   Architecture :
-     - Schéma de fiche figé dans EMPTY_FICHE (compatible export/import JSON)
-     - Stockage : localStorage namespacé 'loa.*'
-     - Multi-fiches : objet { ficheId: fiche }, fiche active référencée par ID
-     - Rendu : appel unique de render() qui synchronise tout le DOM avec l'état
-     - Format JSON : enveloppe identique à Drakonym Compagnon (_format, _version,
-       _exported_at, fiche) pour partager les conventions
+   Format JSON : enveloppe { _format, _version, _exported_at, fiche }
+   compatible avec les conventions Drakonym Compagnon.
    ========================================================================== */
 
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '0.2.0';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -23,8 +18,7 @@ function emptyFiche(nom='Sans nom'){
   return {
     nom, kin: '', primary: 'Body',
     attributs: { Body: 1, Gods: 1, Mind: 1, Shadow: 1, Soul: 1, World: 1 },
-    classes: [],   // [{id, nom, type:'major'|'minor', niveau, color}]
-    jobs: [],      // [{id, nom, niveau, color}]
+    classes: [], jobs: [],
     hp_current: 10, hp_max: 10,
     sp_current: 10, sp_max: 10,
     mp_current: 6,  mp_max: 6,
@@ -34,24 +28,17 @@ function emptyFiche(nom='Sans nom'){
     class_die_recovery_used: false,
     short_rests_taken: 0, short_rests_max: 3,
     limit_break_actif: null, limit_break_used: false,
-    statuses: [],  // [{id, nom, valeur, color}]
-    perks: [],     // [{id, titre, description, color}]
-    sorts: [],     // [{id, titre, description, color, aspect, sp_cost, ap_cost}]
-    melodies: [],  // [{id, titre, description, color, mp_cost}]
+    statuses: [], perks: [], sorts: [], melodies: [],
     moments: [], ways: [], tones: [],
     draviks: 0, xp_courant: 0,
-    weapons: [],   // [{id, nom, type, hands, range, damage, counter, draviks, properties, description, color, equipped}]
-    armors: [],    // [{id, nom, category, def, min_body, draviks, properties, description, color, equipped}]
-    tools: [],     // [{id, nom, attribute, quantity, draviks, description, color}]
-    waymates: [],
+    weapons: [], armors: [], tools: [], waymates: [],
     apparence: '', histoire: '', liens: '', notes: '',
     solo_mode: false,
     _fiche_id: newId()
   };
 }
 
-/* -------------------- Tables de référence LOA -------------------------- */
-// Statuts officiels du Core Rulebook
+/* -------------------- Tables LOA --------------------------------------- */
 const LOA_STATUSES = [
   { nom: 'Blinded',      color: 'gray',   desc: 'Bane sur les Checks ciblant la vue.' },
   { nom: 'Burning',      color: 'red',    desc: '1d6 Fire en début de round.' },
@@ -72,7 +59,6 @@ const LOA_STATUSES = [
   { nom: 'Weakened',     color: 'red',    desc: 'Dégâts physiques divisés par 2.' }
 ];
 
-// Taille du Dé de Classe par niveau total
 function classDieSize(niveau){
   if(niveau <= 2)  return 4;
   if(niveau <= 4)  return 6;
@@ -80,8 +66,6 @@ function classDieSize(niveau){
   if(niveau <= 8)  return 10;
   return 12;
 }
-
-/* -------------------- Dérivations --------------------------------------- */
 function niveauTotal(fiche){
   let n = (fiche.classes || []).reduce((a,c) => a + (c.niveau || 0), 0);
   n += (fiche.jobs || []).reduce((a,j) => a + (j.niveau || 0), 0);
@@ -101,6 +85,7 @@ function classDieLabel(cd){
 /* -------------------- Stockage ----------------------------------------- */
 let state = { fiches: {}, activeId: null };
 let opts  = {};
+let diceMult = 1;
 
 function loadState(){
   try {
@@ -108,9 +93,7 @@ function loadState(){
     state.activeId = localStorage.getItem(ACTIVE_KEY) || null;
     opts = JSON.parse(localStorage.getItem(OPTS_KEY) || '{}');
   } catch(e){
-    console.error('Erreur de chargement', e);
-    state = { fiches: {}, activeId: null };
-    opts = {};
+    state = { fiches: {}, activeId: null }; opts = {};
   }
   if(Object.keys(state.fiches).length === 0){
     const f = emptyFiche('Nouveau Héros');
@@ -135,22 +118,32 @@ function switchFiche(id){
   state.activeId = id;
   saveState(); render();
 }
-function createFicheFromName(nom){
-  const f = emptyFiche(nom || 'Sans nom');
+function createFiche(){
+  const nom = $('newFicheName').value.trim() || 'Sans nom';
+  const f = emptyFiche(nom);
   state.fiches[f._fiche_id] = f;
   state.activeId = f._fiche_id;
   saveState(); render(); closeModal('newFicheModal');
-  toast('Fiche « ' + f.nom + ' » créée');
-}
-function createFiche(){
-  const nom = $('newFicheName').value.trim() || 'Sans nom';
-  createFicheFromName(nom);
+  toast('Fiche « ' + nom + ' » créée');
 }
 function deleteFiche(){
   const f = active();
   if(!f) return;
   if(!confirm('Supprimer définitivement la fiche « ' + f.nom + ' » ?')) return;
   delete state.fiches[f._fiche_id];
+  ensureActiveFiche();
+  saveState(); render(); closeModal('editModal');
+  toast('Fiche supprimée');
+}
+function deleteFicheById(id){
+  const f = state.fiches[id];
+  if(!f) return;
+  if(!confirm('Supprimer « ' + f.nom + ' » ?')) return;
+  delete state.fiches[id];
+  if(state.activeId === id) ensureActiveFiche();
+  saveState(); render(); renderFichesList();
+}
+function ensureActiveFiche(){
   const ids = Object.keys(state.fiches);
   if(ids.length === 0){
     const nf = emptyFiche('Nouveau Héros');
@@ -159,8 +152,6 @@ function deleteFiche(){
   } else {
     state.activeId = ids[0];
   }
-  saveState(); render(); closeModal('editModal');
-  toast('Fiche supprimée');
 }
 
 /* -------------------- Rendu (DOM) -------------------------------------- */
@@ -179,6 +170,9 @@ function render(){
     + (others ? ' / ' + others : '')
     + (f.kin ? ' · ' + f.kin : '');
 
+  /* stats row (6 attributs, Primary doré) */
+  renderStats();
+
   /* jauges */
   setBar('hp', f.hp_current, f.hp_max);
   setBar('sp', f.sp_current, f.sp_max);
@@ -186,7 +180,7 @@ function render(){
   setBar('def', f.defense_current, f.defense_max);
   setBar('wound', f.wounds_current, f.wounds_max);
 
-  /* overdrive : moins de la moitié HP + Limit Break dispo */
+  /* overdrive */
   const low = f.hp_current > 0 && f.hp_current < f.hp_max / 2;
   $('hpbar').classList.toggle('low', low);
   $('win').classList.toggle('overdrive', low && !f.limit_break_used && f.hp_current > 0);
@@ -201,9 +195,23 @@ function render(){
   /* statuts */
   renderStatuses();
 
-  /* fiche selector */
-  $('ficheLabel').textContent = f.nom || '—';
-  renderDropdown();
+  /* fiche button */
+  $('ficheBtnLabel').textContent = f.nom || '—';
+}
+
+function renderStats(){
+  const wrap = $('statsRow');
+  const f = active();
+  wrap.innerHTML = '';
+  ['Body','Gods','Mind','Shadow','Soul','World'].forEach(a => {
+    const box = document.createElement('div');
+    box.className = 'stat' + (f.primary === a ? ' primary' : '');
+    box.innerHTML = '<span class="stat-name">' + a.slice(0,3).toUpperCase() + '</span>'
+      + '<span class="stat-val">' + (f.attributs[a] || 0) + '</span>';
+    box.title = 'Lancer un Check avec ' + a;
+    box.onclick = () => openCheckBuilder(a);
+    wrap.appendChild(box);
+  });
 }
 
 function setBar(key, cur, max){
@@ -237,51 +245,50 @@ function renderStatuses(){
   wrap.appendChild(add);
 }
 
-function renderDropdown(){
-  const dd = $('ficheDropdown');
-  dd.innerHTML = '';
-  Object.values(state.fiches).forEach(f => {
-    const it = document.createElement('div');
-    it.className = 'item' + (f._fiche_id === state.activeId ? ' active' : '');
-    it.innerHTML = '<span>' + escapeHtml(f.nom || '—') + '</span>'
-      + '<span class="del" onclick="event.stopPropagation(); deleteFicheById(\'' + f._fiche_id + '\')">×</span>';
-    it.onclick = () => { switchFiche(f._fiche_id); closeDropdown(); };
-    dd.appendChild(it);
-  });
-  const sep = document.createElement('div');
-  sep.className = 'sep';
-  dd.appendChild(sep);
-  const add = document.createElement('div');
-  add.className = 'item';
-  add.innerHTML = '<span>+ NOUVELLE FICHE</span>';
-  add.onclick = () => { closeDropdown(); openModal('newFicheModal'); $('newFicheName').value = ''; $('newFicheName').focus(); };
-  dd.appendChild(add);
-}
-function deleteFicheById(id){
-  const f = state.fiches[id];
-  if(!f) return;
-  if(!confirm('Supprimer « ' + f.nom + ' » ?')) return;
-  delete state.fiches[id];
-  if(state.activeId === id){
-    const ids = Object.keys(state.fiches);
-    state.activeId = ids[0] || null;
-    if(!state.activeId){
-      const nf = emptyFiche('Nouveau Héros');
-      state.fiches[nf._fiche_id] = nf;
-      state.activeId = nf._fiche_id;
-    }
-  }
-  saveState(); render();
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
-function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+/* -------------------- Modal "FICHES" ----------------------------------- */
+function openFichesModal(){
+  renderFichesList();
+  openModal('fichesModal');
+}
+function renderFichesList(){
+  const wrap = $('fichesList');
+  wrap.innerHTML = '';
+  Object.values(state.fiches).forEach(f => {
+    const card = document.createElement('div');
+    card.className = 'fiche-card' + (f._fiche_id === state.activeId ? ' active' : '');
+    const cls = (f.classes && f.classes[0])
+      ? (f.classes[0].nom + ' ' + f.classes[0].niveau)
+      : 'Sans classe';
+    const niv = niveauTotal(f);
+    card.innerHTML = '<div class="ini">' + escapeHtml((f.nom || '?').charAt(0).toUpperCase()) + '</div>'
+      + '<div class="info">'
+      + '<div class="nm">' + escapeHtml(f.nom || '—') + '</div>'
+      + '<div class="sub">Niv. ' + niv + ' · ' + escapeHtml(cls) + (f.kin ? ' · ' + escapeHtml(f.kin) : '') + '</div>'
+      + '</div>'
+      + '<button class="del" title="Supprimer">×</button>';
+    card.onclick = (e) => {
+      if(e.target.classList.contains('del')) return;
+      switchFiche(f._fiche_id);
+      closeModal('fichesModal');
+    };
+    card.querySelector('.del').onclick = (e) => {
+      e.stopPropagation();
+      deleteFicheById(f._fiche_id);
+    };
+    wrap.appendChild(card);
+  });
+}
 
 /* -------------------- Ajustement des jauges ----------------------------- */
 function adjust(key, delta){
   const f = active(); if(!f) return;
   if(key === 'hp'){
-    f.hp_current = Math.max(0, Math.min(f.hp_max, f.hp_current + delta));
-    // À 0 HP : commence à prendre des Wounds (LOA règle)
+    const before = f.hp_current;
+    f.hp_current = Math.max(0, Math.min(f.hp_max, before + delta));
     if(f.hp_current === 0 && delta < 0 && f.wounds_current < f.wounds_max){
       f.wounds_current = Math.min(f.wounds_max, f.wounds_current + 1);
       toast('Dying : +1 Wound (' + f.wounds_current + '/' + f.wounds_max + ')');
@@ -296,14 +303,11 @@ function adjust(key, delta){
     f.defense_current = Math.max(0, Math.min(f.defense_max, f.defense_current + delta));
   } else if(key === 'wounds'){
     f.wounds_current = Math.max(0, Math.min(f.wounds_max, f.wounds_current + delta));
-    if(f.wounds_current >= f.wounds_max){
-      toast('Mort : 6 Wounds atteint.');
-    }
+    if(f.wounds_current >= f.wounds_max) toast('Mort : 6 Wounds atteint.');
   }
   saveState(); render();
 }
 function floater(text, cls){
-  if(!opts.floaters && opts.floaters !== undefined) return;
   if(opts.floaters === false) return;
   const win = $('win'), bar = $('hpbar');
   const f = document.createElement('span');
@@ -372,7 +376,7 @@ function rollD(n){ return Math.floor(Math.random()*n) + 1; }
 
 function spawnDie(tray, finalValue, startDelay, rollDur, max=6){
   const f = document.createElement('span');
-  f.className = 'face in';
+  f.className = 'face in' + (max >= 100 ? ' big' : '');
   f.style.animationDelay = startDelay + 'ms';
   f.textContent = rollD(max);
   tray.appendChild(f);
@@ -405,9 +409,9 @@ function openRollModal(title, q, sub){
 function closeRollModal(){ $('rollModal').classList.remove('show'); }
 
 /* -------------------- Construction d'un Check --------------------------- */
-function openCheckBuilder(){
+function openCheckBuilder(attrA){
   const f = active();
-  $('checkAttrA').value = f.primary;
+  $('checkAttrA').value = attrA || f.primary;
   $('checkAttrB').value = '';
   $('checkBoons').value = 0;
   $('checkBanes').value = 0;
@@ -422,7 +426,7 @@ function runCheck(){
   closeModal('checkModal');
 
   const valA = f.attributs[a] || 0;
-  const valB = b ? (f.attributs[b] || 0) : valA; // si pas de B, double A
+  const valB = b ? (f.attributs[b] || 0) : valA;
   const n = Math.max(1, valA + valB);
   const label = b ? (a + ' + ' + b) : (a + ' (×2)');
   const net = boons - banes;
@@ -431,7 +435,6 @@ function runCheck(){
   initAudio(); sfxConfirm();
   openRollModal('JET DE CHECK', label.toUpperCase(), n + 'd6' + netLbl);
 
-  // jet brut
   const dice = [];
   for(let i = 0; i < n; i++) dice.push(rollD(6));
 
@@ -439,7 +442,6 @@ function runCheck(){
   const STAG = 180, ROLL = 600;
   const faces = dice.map((d, i) => spawnDie(tray, d, i*STAG, ROLL, 6));
 
-  // mise en lumière des succès
   dice.forEach((d, i) => {
     setTimeout(() => {
       if(d >= 5){ faces[i].classList.add('hit'); beep(880 + (d-5)*220, .08); }
@@ -447,15 +449,11 @@ function runCheck(){
   });
 
   const lastSettle = (n-1)*STAG + ROLL + 220;
-
-  // Application des Boons / Banes net après la pose
   let netRemaining = net;
-  let extraDelay = 0;
   const applyBoonBane = () => {
     if(netRemaining === 0){ finishCheck(dice, label); return; }
     let changed = false;
     if(netRemaining > 0){
-      // Boon : transforme un 4 en 5
       const idx = dice.findIndex(d => d === 4);
       if(idx >= 0){
         dice[idx] = 5;
@@ -467,11 +465,8 @@ function runCheck(){
         }, 300);
         netRemaining--;
         changed = true;
-      } else {
-        netRemaining = 0;
-      }
+      } else { netRemaining = 0; }
     } else {
-      // Bane : transforme un 5 en 4
       const idx = dice.findIndex(d => d === 5);
       if(idx >= 0){
         dice[idx] = 4;
@@ -483,15 +478,10 @@ function runCheck(){
         }, 300);
         netRemaining++;
         changed = true;
-      } else {
-        netRemaining = 0;
-      }
+      } else { netRemaining = 0; }
     }
-    if(changed){
-      setTimeout(applyBoonBane, 600);
-    } else {
-      finishCheck(dice, label);
-    }
+    if(changed) setTimeout(applyBoonBane, 600);
+    else finishCheck(dice, label);
   };
   setTimeout(applyBoonBane, lastSettle + 600);
 }
@@ -508,7 +498,6 @@ function finishCheck(dice, label){
     const box = document.querySelector('#rollModal .roll-box');
     box.classList.remove('crit'); void box.offsetWidth; box.classList.add('crit');
   }
-  // trace dans le log permanent
   const lt = $('rolltray');
   lt.innerHTML = '<span class="q">' + escapeHtml(label) + '</span>';
   dice.forEach(d => {
@@ -530,41 +519,44 @@ function rollClassDie(){
   openRollModal('DÉ DE CLASSE', classDieLabel(cd), 'Primary : ' + f.primary);
   const dice = [];
   for(let i = 0; i < cd.count; i++) dice.push(rollD(cd.size));
-  const STAG = 200, ROLL = 660;
-  spawnAndShowSum(dice, cd.size, STAG, ROLL, cd.bonus);
+  showDiceSum(dice, cd.size, cd.bonus, 'Dé de Classe', () => {
+    const die = $('cddie');
+    die.classList.remove('pop'); void die.offsetWidth; die.classList.add('pop');
+  });
 }
 
-function spawnAndShowSum(dice, size, STAG, ROLL, bonus){
+/* helper commun : anime un pool de dés et affiche la somme */
+function showDiceSum(dice, size, bonus, label, onDone){
   const tray = $('rmTray');
+  const STAG = 200, ROLL = 660;
   dice.forEach((d, i) => spawnDie(tray, d, i*STAG, ROLL, size));
   dice.forEach((d, i) => setTimeout(() => beep(660 + i*100, .07), i*STAG + ROLL + 120));
   const lastSettle = (dice.length - 1) * STAG + ROLL + 120;
   setTimeout(() => {
     const total = dice.reduce((a,b) => a+b, 0) + (bonus || 0);
-    const res = $('rmRes');
     const detail = dice.join(' + ') + (bonus ? ' + ' + bonus : '');
+    const res = $('rmRes');
     res.className = 'roll-res-big banner';
-    res.innerHTML = 'TOTAL ' + total + '<small>' + detail + '</small>';
+    res.innerHTML = 'TOTAL ' + total
+      + (dice.length > 1 || bonus ? '<small>' + detail + '</small>' : '');
     $('rmOk').classList.add('ready');
-    const die = $('cddie');
-    die.classList.remove('pop'); void die.offsetWidth; die.classList.add('pop');
-    // log permanent
     const lt = $('rolltray');
-    lt.innerHTML = '<span class="q">Dé de Classe</span>';
+    lt.innerHTML = '<span class="q">' + escapeHtml(label) + '</span>';
     dice.forEach(d => {
       const f = document.createElement('span');
-      f.className = 'face';
+      f.className = 'face' + (size >= 100 ? ' big' : '');
       f.textContent = d;
       lt.appendChild(f);
     });
     const lr = $('rollres');
     lr.className = 'res';
     lr.innerHTML = 'Total ' + total;
+    if(onDone) onDone();
+    return total;
   }, lastSettle + 500);
-  return dice;
 }
 
-/* -------------------- Soin Class Die (hors combat) ---------------------- */
+/* -------------------- Soin Class Die ----------------------------------- */
 function useCDRecovery(){
   const f = active();
   if(f.class_die_recovery_used){
@@ -592,6 +584,20 @@ function useCDRecovery(){
     $('rmOk').classList.add('ready');
     sfxHeal();
   }, lastSettle + 500);
+}
+
+/* -------------------- Dés libres --------------------------------------- */
+function changeMult(delta){
+  diceMult = Math.max(1, Math.min(10, diceMult + delta));
+  $('diceMult').textContent = '×' + diceMult;
+}
+function rollFreeDie(size){
+  initAudio(); sfxConfirm();
+  const label = diceMult + 'd' + size;
+  openRollModal('DÉS LIBRES', label.toUpperCase(), '');
+  const dice = [];
+  for(let i = 0; i < diceMult; i++) dice.push(rollD(size));
+  showDiceSum(dice, size, 0, label);
 }
 
 /* -------------------- Repos court --------------------------------------- */
@@ -623,7 +629,6 @@ function levelUp(){
     alert('Ajoute d\'abord une classe via le bouton Éditer (✎).');
     return;
   }
-  // Pour Phase 1 : level-up la classe principale, +1 niveau, +1 attribut Primary
   const c = f.classes[0];
   const newLevel = c.niveau + 1;
   const oldTotal = niveauTotal(f);
@@ -708,7 +713,6 @@ function saveEdit(){
   f.sp_max     = clampInt($('edSPMax').value, 0, 999);
   f.mp_max     = clampInt($('edMPMax').value, 0, 99);
   f.defense_max= clampInt($('edDEFMax').value, 0, 99);
-  // Reclamp les valeurs courantes si max a baissé
   f.hp_current      = Math.min(f.hp_current, f.hp_max);
   f.sp_current      = Math.min(f.sp_current, f.sp_max);
   f.mp_current      = Math.min(f.mp_current, f.mp_max);
@@ -743,15 +747,13 @@ function importJson(file){
       const data = JSON.parse(reader.result);
       if(data._format !== 'loa-compagnon'){
         if(data._format === 'drakonym-compagnon'){
-          alert('Cette fiche vient de Drakonym Compagnon. L\'import automatique Drakonym→LOA n\'est pas encore branché (Phase ultérieure). Ouvre le JSON et adapte-le à la main pour l\'instant, ou crée une fiche LOA neuve.');
+          alert('Cette fiche vient de Drakonym Compagnon. L\'import auto Drakonym→LOA arrive dans une prochaine phase. Crée une fiche LOA neuve pour l\'instant.');
           return;
         }
         if(!confirm('Format inconnu (' + data._format + '). Tenter quand même l\'import ?')) return;
       }
       const f = data.fiche || data;
-      // garantit un ID unique
       f._fiche_id = newId();
-      // merge avec EMPTY_FICHE pour ne pas perdre les nouveaux champs LOA
       const merged = Object.assign({}, emptyFiche(f.nom || 'Importé'), f);
       merged._fiche_id = f._fiche_id;
       state.fiches[merged._fiche_id] = merged;
@@ -765,7 +767,7 @@ function importJson(file){
   reader.readAsText(file);
 }
 
-/* -------------------- Modals (helpers génériques) ----------------------- */
+/* -------------------- Modals (helpers) --------------------------------- */
 function openModal(id){ $(id).classList.add('show'); }
 function closeModal(id){ $(id).classList.remove('show'); }
 
@@ -777,10 +779,6 @@ function toast(msg){
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 3000);
 }
-
-/* -------------------- Dropdown fiches ---------------------------------- */
-function toggleDropdown(){ $('ficheDropdown').classList.toggle('open'); }
-function closeDropdown(){ $('ficheDropdown').classList.remove('open'); }
 
 /* -------------------- Réglages (options) ------------------------------- */
 const OPTIONS = [
@@ -805,7 +803,7 @@ function renderOptsList(){
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px dashed rgba(255,255,255,.1)';
     row.innerHTML = '<span style="font-size:13px">' + label + '</span>'
-      + '<span class="sw" data-on="' + (opts[k]?'1':'0') + '" style="width:36px;height:20px;border-radius:11px;background:'
+      + '<span class="sw" style="width:36px;height:20px;border-radius:11px;background:'
       + (opts[k] ? '#3fa34d' : '#3a3f57') + ';position:relative;flex-shrink:0;box-shadow:inset 0 0 0 2px #000;cursor:pointer;transition:background .2s">'
       + '<span style="position:absolute;top:2px;left:' + (opts[k] ? '18px' : '2px') + ';width:14px;height:14px;border-radius:50%;background:#cfd3ec;transition:left .18s"></span>'
       + '</span>';
@@ -821,19 +819,12 @@ function renderOptsList(){
 
 /* -------------------- Wiring ------------------------------------------- */
 function wire(){
-  $('ficheSelect').onclick = e => {
-    if(e.target.closest('.fiche-dropdown')) return;
-    toggleDropdown();
-    e.stopPropagation();
-  };
-  document.addEventListener('click', () => closeDropdown());
-
+  $('ficheBtn').onclick    = openFichesModal;
   $('btnEdit').onclick     = openEdit;
   $('btnImport').onclick   = () => $('fileInput').click();
   $('btnExport').onclick   = exportJson;
   $('btnSettings').onclick = () => { renderOptsList(); openModal('settingsModal'); };
-
-  $('fileInput').onchange = e => {
+  $('fileInput').onchange  = e => {
     const f = e.target.files[0];
     if(f) importJson(f);
     e.target.value = '';
