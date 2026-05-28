@@ -977,6 +977,113 @@ body.opt-scan .panel::after { opacity: 1; }
 }
 
 /* ==========================================================================
+   Classes & Jobs (chips)
+   ========================================================================== */
+.class-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.class-chip {
+  padding: 9px 13px;
+  font-family: var(--pixel);
+  font-size: 8px;
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px rgba(0,0,0,.35);
+  letter-spacing: .5px;
+  transition: transform .08s, filter .12s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.class-chip:hover { filter: brightness(1.12); }
+.class-chip:active { transform: translateY(1px); }
+.class-chip.major { box-shadow: inset 0 0 0 2px var(--accent), 0 1px 0 var(--frame-dark); }
+.class-chip.major::before { content: '★'; color: var(--accent); }
+.class-chip.job::before    { content: '⚙'; }
+.class-chip.add {
+  background: rgba(255,255,255,.06) !important;
+  color: var(--ink-dim);
+  box-shadow: none;
+  border: 2px dashed rgba(255,255,255,.18);
+}
+.class-chip.add:hover { color: var(--accent); border-color: var(--accent); }
+.class-chip[data-c="blue"]   { background: #3a63d6; }
+.class-chip[data-c="gold"]   { background: var(--accent); color: var(--accent-shadow); text-shadow: 1px 1px 0 rgba(255,255,255,.2); }
+.class-chip[data-c="teal"]   { background: #2eb9b0; }
+.class-chip[data-c="pink"]   { background: #d65bb3; }
+.class-chip[data-c="red"]    { background: #c4382a; }
+.class-chip[data-c="green"]  { background: #3fa34d; }
+.class-chip[data-c="purple"] { background: #7a4ea0; }
+.class-chip[data-c="gray"]   { background: #5b6480; }
+
+/* Sélection du type de classe dans son modal */
+.class-type-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.class-type-btn {
+  flex: 1;
+  padding: 11px 6px;
+  font-family: var(--pixel);
+  font-size: 7px;
+  color: #fff;
+  background: linear-gradient(180deg, #3a63d6, #1d3da0);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px var(--frame-dark);
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+.class-type-btn.active {
+  background: var(--accent);
+  color: var(--accent-shadow);
+  text-shadow: 1px 1px 0 rgba(255,255,255,.2);
+  box-shadow: inset 0 0 0 2px var(--frame-dark), 0 0 8px rgba(248,216,120,.4);
+}
+
+/* Zones Roleplay */
+.rp-label {
+  display: block;
+  font-family: var(--pixel);
+  font-size: 8px;
+  color: var(--accent);
+  margin: 14px 0 6px;
+  letter-spacing: .5px;
+}
+.rp-label:first-of-type { margin-top: 4px; }
+.rp-area {
+  width: 100%;
+  min-height: 70px;
+  padding: 10px;
+  font-family: var(--body);
+  font-size: 13px;
+  color: #fff;
+  background: rgba(8, 18, 60, .55);
+  border: none;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 2px var(--frame-dark);
+  resize: vertical;
+  line-height: 1.5;
+}
+.rp-hint {
+  margin: 12px 0;
+  padding: 10px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--ink-dim);
+  text-align: center;
+  border-radius: 4px;
+  background: rgba(248, 216, 120, .08);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* ==========================================================================
    Bottom nav (mobile uniquement)
    ========================================================================== */
 .bottom-nav {

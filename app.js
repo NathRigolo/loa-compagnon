@@ -3,7 +3,7 @@
    Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.5.0';
+const APP_VERSION = '0.6.0';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -204,6 +204,8 @@ function render(){
   renderStatuses();
   renderInventoryPages();
   renderSidebar();
+  renderClassStrip();
+  renderRP();
 
   $('ficheBtnLabel').textContent = f.nom || '—';
 }
@@ -827,10 +829,11 @@ function shortRest(){
 function levelUp(){
   const f = active();
   if(!f.classes || f.classes.length === 0){
-    alert('Ajoute d\'abord une classe via la page PLUS → Éditer.');
+    alert('Ajoute d\'abord une classe via les chips en haut de la fiche.');
     return;
   }
-  const c = f.classes[0];
+  /* Cible la première Major Class, sinon la première classe tout court */
+  const c = f.classes.find(x => x.type === 'major') || f.classes[0];
   const newLevel = c.niveau + 1;
   const oldTotal = niveauTotal(f);
   const newTotal = oldTotal + 1;
@@ -839,6 +842,9 @@ function levelUp(){
 
   const gains = [];
   gains.push({ k: 'CLASSE', v: c.nom + ' ' + c.niveau + ' → ' + newLevel });
+  if(f.classes.length + (f.jobs || []).length > 1){
+    gains.push({ k: 'NOTE', v: 'pour d\'autres classes : leur chip' });
+  }
   if(newCDSize !== oldCDSize){
     gains.push({ k: 'DÉ DE CLASSE', v: 'd' + oldCDSize + ' → d' + newCDSize });
   } else if(newTotal > 10){
@@ -855,12 +861,16 @@ function levelUp(){
     + '<span style="color:#8ef08a">' + escapeHtml(g.v) + '</span>'
     + '</div>'
   ).join('');
+  $('lvlOverlay').dataset.targetClassId = c.id || '';
   openModal('lvlOverlay');
   initAudio(); sfxLevel();
 }
 function applyLevelUp(){
   const f = active();
-  const c = f.classes[0];
+  const targetId = $('lvlOverlay').dataset.targetClassId;
+  const c = targetId
+    ? f.classes.find(x => x.id === targetId)
+    : (f.classes.find(x => x.type === 'major') || f.classes[0]);
   if(!c){ closeModal('lvlOverlay'); return; }
   c.niveau++;
   saveState(); render();
@@ -873,9 +883,6 @@ function openEdit(){
   const f = active();
   $('edNom').value     = f.nom || '';
   $('edKin').value     = f.kin || '';
-  const c = (f.classes || [])[0] || { nom: '', niveau: 1 };
-  $('edClasse').value  = c.nom;
-  $('edNiveau').value  = c.niveau;
   $('edPrimary').value = f.primary;
   $('edBody').value    = f.attributs.Body;
   $('edGods').value    = f.attributs.Gods;
@@ -893,16 +900,6 @@ function saveEdit(){
   const f = active();
   f.nom     = $('edNom').value.trim() || 'Sans nom';
   f.kin     = $('edKin').value.trim();
-  const classeNom = $('edClasse').value.trim();
-  const classeNiv = parseInt($('edNiveau').value) || 1;
-  if(classeNom){
-    if(!f.classes || f.classes.length === 0){
-      f.classes = [{ id: newId(), nom: classeNom, niveau: classeNiv, type: 'major', color: 'blue' }];
-    } else {
-      f.classes[0].nom = classeNom;
-      f.classes[0].niveau = classeNiv;
-    }
-  }
   f.primary        = $('edPrimary').value;
   f.attributs.Body = clampInt($('edBody').value, 0, 99);
   f.attributs.Gods = clampInt($('edGods').value, 0, 99);
@@ -1023,13 +1020,16 @@ const INV_CATS = {
   perks:    { label: 'PERKS',    field: 'perks',    defaultColor: 'blue' },
   sorts:    { label: 'SORTS',    field: 'sorts',    defaultColor: 'pink' },
   melodies: { label: 'MELODIES', field: 'melodies', defaultColor: 'gold' },
+  moments:  { label: 'MOMENTS',  field: 'moments',  defaultColor: 'gold' },
+  ways:     { label: 'WAYS',     field: 'ways',     defaultColor: 'teal' },
+  tones:    { label: 'TONES',    field: 'tones',    defaultColor: 'purple' },
   weapons:  { label: 'ARMES',    field: 'weapons',  defaultColor: 'red'  },
   armors:   { label: 'ARMURES',  field: 'armors',   defaultColor: 'blue' },
   tools:    { label: 'OBJETS',   field: 'tools',    defaultColor: 'teal' }
 };
 const ITEM_COLORS = ['blue','gold','teal','pink','red','green','purple','gray'];
 
-const CAPA_KEYS  = ['perks', 'sorts', 'melodies'];
+const CAPA_KEYS  = ['perks', 'sorts', 'melodies', 'moments', 'ways', 'tones'];
 const EQUIP_KEYS = ['weapons', 'armors', 'tools'];
 
 function renderInventoryPages(){
@@ -1078,6 +1078,9 @@ function renderInvSection(page, keys, currentKey, tabsId, listId){
   else if(currentKey === 'tools')   addLabel = '+ AJOUTER UN OBJET';
   else if(currentKey === 'sorts')   addLabel = '+ AJOUTER UN SORT';
   else if(currentKey === 'perks')   addLabel = '+ AJOUTER UN PERK';
+  else if(currentKey === 'moments') addLabel = '+ AJOUTER UN MOMENT';
+  else if(currentKey === 'ways')    addLabel = '+ AJOUTER UN WAY';
+  else if(currentKey === 'tones')   addLabel = '+ AJOUTER UN TONE';
   addBtn.textContent = addLabel;
   addBtn.onclick = () => openItemEditor(currentKey, null);
   /* Le bouton add doit s'étendre sur 2 colonnes */
@@ -1278,7 +1281,8 @@ function saveItem(){
   const f = active();
   if(isNew) item.id = newId();
 
-  const titleField = (cat === 'perks' || cat === 'sorts' || cat === 'melodies') ? 'titre' : 'nom';
+  const titleField = (cat === 'perks' || cat === 'sorts' || cat === 'melodies'
+                    || cat === 'moments' || cat === 'ways' || cat === 'tones') ? 'titre' : 'nom';
   item[titleField] = $('itemTitle').value.trim() || 'Sans nom';
   item.description = $('itemDesc').value.trim();
   const activeColor = $('colorPicker').querySelector('.color-pick.active');
@@ -1670,6 +1674,192 @@ function playMelody(melody){
   logRoll('Mélodie · ' + (melody.titre || ''), '−' + cost + ' MP');
 }
 
+/* -------------------- Classes & Jobs (multiclasse) --------------------- */
+let editingClass = null; // { item, isJob, isNew }
+let pendingClassType = 'major';
+
+function renderClassStrip(){
+  const wrap = $('classStrip');
+  const f = active();
+  wrap.innerHTML = '';
+
+  /* Chip Kin (lecture seule, juste pour le visuel) */
+  if(f.kin){
+    const kin = document.createElement('span');
+    kin.className = 'class-chip';
+    kin.setAttribute('data-c', 'gray');
+    kin.textContent = f.kin;
+    kin.title = 'Kin (modifiable via Éditer)';
+    kin.onclick = openEdit;
+    wrap.appendChild(kin);
+  }
+
+  /* Chips classes (Major / Minor) */
+  (f.classes || []).forEach(c => {
+    const chip = document.createElement('span');
+    chip.className = 'class-chip ' + (c.type === 'minor' ? 'minor' : 'major');
+    chip.setAttribute('data-c', c.color || 'blue');
+    chip.textContent = (c.nom || 'Sans nom') + ' ' + (c.niveau || 1);
+    chip.onclick = () => openClassEditor(c, false);
+    wrap.appendChild(chip);
+  });
+
+  /* Chips jobs */
+  (f.jobs || []).forEach(j => {
+    const chip = document.createElement('span');
+    chip.className = 'class-chip job';
+    chip.setAttribute('data-c', j.color || 'teal');
+    chip.textContent = (j.nom || 'Sans nom') + ' ' + (j.niveau || 1);
+    chip.onclick = () => openClassEditor(j, true);
+    wrap.appendChild(chip);
+  });
+
+  /* Chip + AJOUTER */
+  const add = document.createElement('span');
+  add.className = 'class-chip add';
+  add.textContent = '+ AJOUTER';
+  add.onclick = () => openClassEditor(null, false);
+  wrap.appendChild(add);
+}
+
+function openClassEditor(item, isJob){
+  editingClass = {
+    item: item || {},
+    source: isJob ? 'jobs' : 'classes',
+    isNew: !item
+  };
+
+  /* Type initial */
+  let initialType = 'major';
+  if(isJob) initialType = 'job';
+  else if(item && item.type === 'minor') initialType = 'minor';
+  else if(item && item.type === 'major') initialType = 'major';
+  setClassType(initialType);
+
+  const src = item || {};
+  $('classModalTitle').textContent = (item ? 'MODIFIER · ' : 'NOUVEAU · ')
+    + (initialType === 'job' ? 'JOB' : 'CLASSE');
+  $('classNom').value = src.nom || '';
+  $('classNiveau').value = src.niveau || 1;
+
+  /* Color picker */
+  const defaultColor = (initialType === 'job') ? 'teal' : 'blue';
+  const cp = $('classColorPicker');
+  cp.innerHTML = '';
+  ITEM_COLORS.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'color-pick' + ((src.color || defaultColor) === c ? ' active' : '');
+    b.setAttribute('data-c', c);
+    b.onclick = () => {
+      cp.querySelectorAll('.color-pick').forEach(p => p.classList.remove('active'));
+      b.classList.add('active');
+    };
+    cp.appendChild(b);
+  });
+
+  $('classDeleteBtn').style.display = editingClass.isNew ? 'none' : '';
+  openModal('classModal');
+}
+
+function setClassType(type){
+  pendingClassType = type;
+  document.querySelectorAll('.class-type-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.type === type)
+  );
+  const title = $('classModalTitle');
+  if(title && editingClass){
+    title.textContent = (editingClass.isNew ? 'NOUVEAU · ' : 'MODIFIER · ')
+      + (type === 'job' ? 'JOB' : 'CLASSE');
+  }
+}
+
+function saveClassOrJob(){
+  if(!editingClass) return;
+  const nom = $('classNom').value.trim();
+  if(!nom){ alert('Donne un nom à cette classe/job.'); return; }
+  const niveau = clampInt($('classNiveau').value, 1, 50);
+  const activeBtn = $('classColorPicker').querySelector('.color-pick.active');
+  const color = activeBtn ? activeBtn.getAttribute('data-c') : 'blue';
+
+  const f = active();
+  const oldSource = editingClass.source;          // 'classes' ou 'jobs'
+  const newSource = (pendingClassType === 'job') ? 'jobs' : 'classes';
+
+  /* Bascule Classe ↔ Job : retirer de l'ancien tableau */
+  if(!editingClass.isNew && oldSource !== newSource){
+    f[oldSource] = (f[oldSource] || []).filter(x => x.id !== editingClass.item.id);
+    editingClass.isNew = true;
+  }
+
+  f[newSource] = f[newSource] || [];
+
+  if(editingClass.isNew){
+    const entry = { id: newId(), nom, niveau, color };
+    if(newSource === 'classes') entry.type = pendingClassType;
+    f[newSource].push(entry);
+  } else {
+    const entry = editingClass.item;
+    entry.nom = nom;
+    entry.niveau = niveau;
+    entry.color = color;
+    if(newSource === 'classes') entry.type = pendingClassType;
+    else delete entry.type;
+  }
+
+  /* Avertir si > 2 Major Classes */
+  if(newSource === 'classes' && pendingClassType === 'major'){
+    const majors = (f.classes || []).filter(c => c.type === 'major').length;
+    if(majors > 2) toast('Attention : tu as plus de 2 Major Classes (limite officielle).');
+  }
+
+  saveState();
+  closeModal('classModal');
+  render();
+  toast((editingClass.isNew ? 'Ajouté' : 'Enregistré') + ' : ' + nom + ' ' + niveau);
+}
+
+function deleteClassOrJob(){
+  if(!editingClass || editingClass.isNew){ closeModal('classModal'); return; }
+  const item = editingClass.item;
+  const source = editingClass.source;
+  if(!confirm('Supprimer « ' + (item.nom || 'cette entrée') + ' » ?')) return;
+  const f = active();
+  f[source] = (f[source] || []).filter(x => x.id !== item.id);
+  saveState();
+  closeModal('classModal');
+  render();
+  toast('Supprimé');
+}
+
+/* -------------------- Roleplay (apparence / histoire / liens / notes) --- */
+function renderRP(){
+  const f = active();
+  if(!f) return;
+  if($('rpApparence')) $('rpApparence').value = f.apparence || '';
+  if($('rpHistoire'))  $('rpHistoire').value  = f.histoire || '';
+  if($('rpLiens'))     $('rpLiens').value     = f.liens || '';
+  if($('rpNotes'))     $('rpNotes').value     = f.notes || '';
+}
+let rpSaveTimer = null;
+function wireRP(){
+  ['rpApparence','rpHistoire','rpLiens','rpNotes'].forEach(id => {
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener('input', () => {
+      clearTimeout(rpSaveTimer);
+      rpSaveTimer = setTimeout(() => {
+        const f = active(); if(!f) return;
+        f.apparence = $('rpApparence').value;
+        f.histoire  = $('rpHistoire').value;
+        f.liens     = $('rpLiens').value;
+        f.notes     = $('rpNotes').value;
+        saveState();
+      }, 400);
+    });
+  });
+}
+
 /* -------------------- Wiring ------------------------------------------- */
 function wire(){
   /* Navigation */
@@ -1702,6 +1892,7 @@ function init(){
   loadState();
   applyOpts();
   wire();
+  wireRP();
   switchPage('fiche');
   render();
   registerSW();

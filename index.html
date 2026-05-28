@@ -56,6 +56,11 @@
       <div class="page active" id="page-fiche">
 
         <div class="panel">
+          <div class="section-h">CLASSES &amp; JOBS</div>
+          <div class="class-strip" id="classStrip"></div>
+        </div>
+
+        <div class="panel">
           <div class="section-h">ATTRIBUTS</div>
           <div class="stats-row" id="statsRow"></div>
         </div>
@@ -150,6 +155,17 @@
             <button onclick="exportJson()">↑ EXPORTER</button>
             <button onclick="openModal('settingsModal')">⚙ RÉGLAGES</button>
           </div>
+        </div>
+        <div class="panel">
+          <div class="section-h">ROLEPLAY</div>
+          <label class="rp-label">Apparence</label>
+          <textarea class="rp-area" id="rpApparence" placeholder="Comment ressemble ton personnage…"></textarea>
+          <label class="rp-label">Histoire</label>
+          <textarea class="rp-area" id="rpHistoire" placeholder="D'où vient-il, ce qu'il a vécu…"></textarea>
+          <label class="rp-label">Liens</label>
+          <textarea class="rp-area" id="rpLiens" placeholder="Famille, amitiés, ennemis, factions…"></textarea>
+          <label class="rp-label">Notes</label>
+          <textarea class="rp-area" id="rpNotes" placeholder="Idées, objectifs en cours, infos diverses…"></textarea>
         </div>
         <input type="file" id="fileInput" accept="application/json" hidden>
       </div>
@@ -292,11 +308,7 @@
       <input type="text" id="edNom">
       <label>Kin</label>
       <input type="text" id="edKin" placeholder="Human, Elf, Drakari, Croakin…">
-      <label>Classe (principale) · Niveau</label>
-      <div class="row">
-        <input type="text" id="edClasse" placeholder="Healer, Mage, Warrior…">
-        <input type="number" id="edNiveau" min="1" max="20" value="1">
-      </div>
+      <div class="rp-hint">Les classes &amp; jobs se gèrent via les chips en haut de la page FICHE.</div>
       <label>Attribut Primary</label>
       <select id="edPrimary">
         <option>Body</option><option>Gods</option><option>Mind</option>
@@ -604,6 +616,35 @@
       <div class="actions-row">
         <button class="btn" onclick="closeModal('limitBreakModal')">ANNULER</button>
         <button class="btn" onclick="confirmLimitBreak()">★ DÉCLENCHER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Classe / Job -->
+  <div class="overlay" id="classModal">
+    <div class="modal-box">
+      <h3 id="classModalTitle">NOUVELLE CLASSE</h3>
+
+      <label>Nom</label>
+      <input type="text" id="classNom" placeholder="Mage, Healer, Warrior, Bombardier…">
+
+      <label>Niveau</label>
+      <input type="number" id="classNiveau" min="1" max="20" value="1">
+
+      <label>Type</label>
+      <div class="class-type-row">
+        <button type="button" class="class-type-btn active" data-type="major" onclick="setClassType('major')">★ MAJOR CLASS</button>
+        <button type="button" class="class-type-btn" data-type="minor" onclick="setClassType('minor')">MINOR CLASS</button>
+        <button type="button" class="class-type-btn" data-type="job" onclick="setClassType('job')">⚙ JOB</button>
+      </div>
+
+      <label>Couleur</label>
+      <div class="color-picker" id="classColorPicker"></div>
+
+      <div class="actions-row">
+        <button class="btn danger" id="classDeleteBtn" onclick="deleteClassOrJob()">SUPPRIMER</button>
+        <button class="btn" onclick="closeModal('classModal')">ANNULER</button>
+        <button class="btn" onclick="saveClassOrJob()">ENREGISTRER</button>
       </div>
     </div>
   </div>
