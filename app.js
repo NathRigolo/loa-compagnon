@@ -1,11 +1,9 @@
 /* ==========================================================================
-   LOA COMPAGNON — Logique principale (v2)
-   ==========================================================================
-   Format JSON : enveloppe { _format, _version, _exported_at, fiche }
-   compatible avec les conventions Drakonym Compagnon.
+   LOA COMPAGNON — Logique principale (v3)
+   Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.3.0';
+const APP_VERSION = '0.4.0';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -34,11 +32,11 @@ function emptyFiche(nom='Sans nom'){
     weapons: [], armors: [], tools: [], waymates: [],
     apparence: '', histoire: '', liens: '', notes: '',
     solo_mode: false,
-    _fiche_id: newId()
+    _fiche_id: newId(),
+    _rollLog: []
   };
 }
 
-/* -------------------- Tables LOA --------------------------------------- */
 const LOA_STATUSES = [
   { nom: 'Blinded',      color: 'gray',   desc: 'Bane sur les Checks ciblant la vue.' },
   { nom: 'Burning',      color: 'red',    desc: '1d6 Fire en début de round.' },
@@ -86,6 +84,12 @@ function classDieLabel(cd){
 let state = { fiches: {}, activeId: null };
 let opts  = {};
 let diceMult = 1;
+let currentPage = 'fiche';
+let currentInvCapa  = 'perks';
+let currentInvEquip = 'weapons';
+let selectedAttrs = [];
+let currentTab = 'check';
+let editingItem = null;
 
 function loadState(){
   try {
@@ -154,6 +158,22 @@ function ensureActiveFiche(){
   }
 }
 
+/* -------------------- Page switching ----------------------------------- */
+function switchPage(page){
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p =>
+    p.classList.toggle('active', p.id === 'page-' + page)
+  );
+  document.querySelectorAll('.nav-item').forEach(n =>
+    n.classList.toggle('active', n.dataset.page === page)
+  );
+  document.querySelectorAll('.bn-item').forEach(n =>
+    n.classList.toggle('active', n.dataset.page === page)
+  );
+  /* Si on entre dans Capacités ou Équipement, on rafraîchit l'inventaire */
+  if(page === 'capacites' || page === 'equipement') renderInventoryPages();
+}
+
 /* -------------------- Rendu (DOM) -------------------------------------- */
 const $ = id => document.getElementById(id);
 
@@ -161,45 +181,41 @@ function render(){
   const f = active();
   if(!f) return;
 
-  /* identité */
-  $('name').textContent    = f.nom || '—';
-  $('initial').textContent = (f.nom || '?').charAt(0).toUpperCase();
-  const cls = (f.classes && f.classes[0]) ? (f.classes[0].nom + ' ' + f.classes[0].niveau) : 'Sans classe';
-  const others = (f.classes || []).slice(1).map(c => c.nom + ' ' + c.niveau).join(' · ');
-  $('meta').innerHTML = 'Niv. <b>' + niveauTotal(f) + '</b> · ' + cls
-    + (others ? ' / ' + others : '')
-    + (f.kin ? ' · ' + f.kin : '');
-
-  /* stats row (6 attributs, Primary doré) */
+  renderHeader();
   renderStats();
-
-  /* jauges */
   setBar('hp', f.hp_current, f.hp_max);
   setBar('sp', f.sp_current, f.sp_max);
   setBar('mp', f.mp_current, f.mp_max);
   setBar('def', f.defense_current, f.defense_max);
   setBar('wound', f.wounds_current, f.wounds_max);
 
-  /* overdrive */
   const low = f.hp_current > 0 && f.hp_current < f.hp_max / 2;
   $('hpbar').classList.toggle('low', low);
-  $('win').classList.toggle('overdrive', low && !f.limit_break_used && f.hp_current > 0);
-  $('win').classList.toggle('dying', f.hp_current <= 0);
+  $('heroHeader').classList.toggle('overdrive', low && !f.limit_break_used && f.hp_current > 0);
+  $('heroHeader').classList.toggle('dying', f.hp_current <= 0);
 
-  /* Dé de Classe */
   const cd = getClassDie(f);
   $('cddie').textContent = 'd' + cd.size;
   $('cdsub').textContent = classDieLabel(cd) + ' · Primary : ' + f.primary
     + (f.class_die_recovery_used ? ' · soin utilisé' : '');
 
-  /* statuts */
   renderStatuses();
+  renderInventoryPages();
+  renderSidebar();
 
-  /* inventaire */
-  renderInventory();
-
-  /* fiche button */
   $('ficheBtnLabel').textContent = f.nom || '—';
+}
+
+function renderHeader(){
+  const f = active();
+  $('initial').textContent = (f.nom || '?').charAt(0).toUpperCase();
+  $('heroName').innerHTML = escapeHtml(f.nom || '—') + '<span class="od-tag">OVERDRIVE</span>';
+  $('heroLevel').textContent = niveauTotal(f);
+  const cls = (f.classes && f.classes[0]) ? (f.classes[0].nom + ' ' + f.classes[0].niveau) : 'Sans classe';
+  const others = (f.classes || []).slice(1).map(c => c.nom + ' ' + c.niveau).join(' · ');
+  $('heroMeta').innerHTML = (f.kin ? escapeHtml(f.kin) + ' · ' : '') + escapeHtml(cls)
+    + (others ? ' / ' + escapeHtml(others) : '')
+    + ' · <b>Primary ' + escapeHtml(f.primary) + '</b>';
 }
 
 function renderStats(){
@@ -209,7 +225,7 @@ function renderStats(){
   ['Body','Gods','Mind','Shadow','Soul','World'].forEach(a => {
     const box = document.createElement('div');
     box.className = 'stat' + (f.primary === a ? ' primary' : '');
-    box.innerHTML = '<span class="stat-name">' + a.slice(0,3).toUpperCase() + '</span>'
+    box.innerHTML = '<span class="stat-name">' + a.toUpperCase() + '</span>'
       + '<span class="stat-val">' + (f.attributs[a] || 0) + '</span>';
     box.title = 'Lancer un Check avec ' + a;
     box.onclick = () => openRoller(a);
@@ -250,6 +266,100 @@ function renderStatuses(){
 
 function escapeHtml(s){
   return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* -------------------- Sidebar droite ----------------------------------- */
+function renderSidebar(){
+  const f = active();
+  if(!f) return;
+
+  /* Armes équipées */
+  const wWrap = $('sbWeapons');
+  wWrap.innerHTML = '';
+  const weq = (f.weapons || []).filter(w => w.equipped);
+  if(weq.length === 0){
+    wWrap.innerHTML = '<div class="sb-empty">Aucune équipée</div>';
+  } else {
+    weq.forEach(w => {
+      const row = document.createElement('div');
+      row.className = 'sb-equip';
+      row.innerHTML = '<span class="eq-star">★</span>'
+        + '<div class="eq-info">'
+        + '<div class="eq-name">' + escapeHtml(w.nom || 'Sans nom') + '</div>'
+        + '<div class="eq-meta">' + escapeHtml(buildItemMeta('weapons', w)) + '</div>'
+        + '</div>';
+      row.onclick = () => openItemEditor('weapons', w);
+      wWrap.appendChild(row);
+    });
+  }
+
+  /* Armures équipées */
+  const aWrap = $('sbArmors');
+  aWrap.innerHTML = '';
+  const aeq = (f.armors || []).filter(a => a.equipped);
+  if(aeq.length === 0){
+    aWrap.innerHTML = '<div class="sb-empty">Aucune équipée</div>';
+  } else {
+    aeq.forEach(a => {
+      const row = document.createElement('div');
+      row.className = 'sb-equip';
+      row.innerHTML = '<span class="eq-star">★</span>'
+        + '<div class="eq-info">'
+        + '<div class="eq-name">' + escapeHtml(a.nom || 'Sans nom') + '</div>'
+        + '<div class="eq-meta">' + escapeHtml(buildItemMeta('armors', a)) + '</div>'
+        + '</div>';
+      row.onclick = () => openItemEditor('armors', a);
+      aWrap.appendChild(row);
+    });
+  }
+
+  /* Total armure */
+  const totalDef = aeq.reduce((a, x) => a + (x.def || 0), 0);
+  $('sbTotal').textContent = totalDef > 0 ? 'TOTAL ARMURE · +' + totalDef : '';
+
+  /* Derniers jets */
+  const rWrap = $('sbRolls');
+  rWrap.innerHTML = '';
+  const log = (f._rollLog || []).slice(0, 5);
+  if(log.length === 0){
+    rWrap.innerHTML = '<div class="sb-empty">Aucun jet</div>';
+  } else {
+    log.forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'sb-roll' + (r.crit ? ' crit' : '') + (r.fail ? ' fail' : '');
+      row.innerHTML = '<div class="sb-r-label">' + escapeHtml(r.label) + '</div>'
+        + '<div class="sb-r-result' + (r.crit ? ' crit' : '') + (r.fail ? ' fail' : '') + '">' + escapeHtml(r.result) + '</div>'
+        + '<div class="sb-r-time">' + formatRelTime(r.time) + '</div>';
+      rWrap.appendChild(row);
+    });
+  }
+}
+
+function formatRelTime(ts){
+  const diff = Date.now() - ts;
+  const s = Math.floor(diff / 1000);
+  if(s < 60) return 'il y a ' + s + 's';
+  const m = Math.floor(s / 60);
+  if(m < 60) return 'il y a ' + m + ' min';
+  const h = Math.floor(m / 60);
+  if(h < 24) return 'il y a ' + h + ' h';
+  const d = Math.floor(h / 24);
+  return 'il y a ' + d + ' j';
+}
+
+function logRoll(label, result, opts){
+  opts = opts || {};
+  const f = active();
+  f._rollLog = f._rollLog || [];
+  f._rollLog.unshift({
+    label, result,
+    crit: !!opts.crit,
+    fail: !!opts.fail,
+    time: Date.now()
+  });
+  if(f._rollLog.length > 20) f._rollLog.length = 20;
+  saveState();
+  renderSidebar();
 }
 
 /* -------------------- Modal "FICHES" ----------------------------------- */
@@ -312,14 +422,15 @@ function adjust(key, delta){
 }
 function floater(text, cls){
   if(opts.floaters === false) return;
-  const win = $('win'), bar = $('hpbar');
+  const header = $('heroHeader'), bar = $('hpbar');
+  if(!bar) return;
   const f = document.createElement('span');
   f.className = 'floater ' + cls;
   f.textContent = text;
-  const r = bar.getBoundingClientRect(), w = win.getBoundingClientRect();
+  const r = bar.getBoundingClientRect(), w = header.getBoundingClientRect();
   f.style.left = (r.left - w.left + r.width/2 - 10) + 'px';
   f.style.top  = (r.top  - w.top  - 6) + 'px';
-  win.appendChild(f);
+  header.appendChild(f);
   setTimeout(() => f.remove(), 1000);
 }
 
@@ -396,7 +507,6 @@ function spawnDie(tray, finalValue, startDelay, rollDur, max=6){
   return f;
 }
 
-/* -------------------- Modal de jets ------------------------------------- */
 function openRollModal(title, q, sub){
   $('rmTitle').textContent = title;
   $('rmQ').textContent = q;
@@ -412,9 +522,6 @@ function openRollModal(title, q, sub){
 function closeRollModal(){ $('rollModal').classList.remove('show'); }
 
 /* -------------------- Roller (modal unifié CHECK / DÉS LIBRES) ---------- */
-let selectedAttrs = [];
-let currentTab = 'check';
-
 function openRoller(preselect){
   selectedAttrs = (preselect && active().attributs[preselect] !== undefined) ? [preselect] : [];
   $('rollBoons').value = 0;
@@ -455,7 +562,7 @@ function toggleAttr(attr){
   const i = selectedAttrs.indexOf(attr);
   if(i >= 0) selectedAttrs.splice(i, 1);
   else {
-    if(selectedAttrs.length >= 2) selectedAttrs.shift(); // remplace le plus ancien
+    if(selectedAttrs.length >= 2) selectedAttrs.shift();
     selectedAttrs.push(attr);
   }
   renderRollerAttrs();
@@ -490,7 +597,6 @@ function updatePool(){
 function runCheck(){
   const f = active();
   if(selectedAttrs.length === 0) return;
-
   const boons = parseInt($('rollBoons').value) || 0;
   const banes = parseInt($('rollBanes').value) || 0;
   closeModal('rollerModal');
@@ -572,7 +678,9 @@ function finishCheck(dice, label){
   res.className = 'roll-res-big banner';
   res.innerHTML = succ + ' SUCCÈS<small>' + tier.toUpperCase() + '</small>';
   $('rmOk').classList.add('ready');
-  if(succ >= 4){
+  const isCrit = succ >= 4;
+  const isFail = succ === 0;
+  if(isCrit){
     sfxCrit();
     const box = document.querySelector('#rollModal .roll-box');
     box.classList.remove('crit'); void box.offsetWidth; box.classList.add('crit');
@@ -588,9 +696,10 @@ function finishCheck(dice, label){
   const lr = $('rollres');
   lr.className = 'res';
   lr.innerHTML = succ + ' succès <span>— ' + tier + '</span>';
+
+  logRoll('Check · ' + label, succ + ' succès · ' + tier, { crit: isCrit, fail: isFail });
 }
 
-/* -------------------- Dé de Classe ------------------------------------- */
 function rollClassDie(){
   const f = active();
   const cd = getClassDie(f);
@@ -604,7 +713,6 @@ function rollClassDie(){
   });
 }
 
-/* helper commun : anime un pool de dés et affiche la somme */
 function showDiceSum(dice, size, bonus, label, onDone){
   const tray = $('rmTray');
   const STAG = 200, ROLL = 660;
@@ -631,11 +739,10 @@ function showDiceSum(dice, size, bonus, label, onDone){
     lr.className = 'res';
     lr.innerHTML = 'Total ' + total;
     if(onDone) onDone();
-    return total;
+    logRoll(label, 'Total ' + total);
   }, lastSettle + 500);
 }
 
-/* -------------------- Soin Class Die ----------------------------------- */
 function useCDRecovery(){
   const f = active();
   if(f.class_die_recovery_used){
@@ -662,10 +769,10 @@ function useCDRecovery(){
     res.innerHTML = '+' + heal + ' HP<small>' + dice.join(' + ') + (cd.bonus ? ' + ' + cd.bonus : '') + '</small>';
     $('rmOk').classList.add('ready');
     sfxHeal();
+    logRoll('Soin CD', '+' + heal + ' HP');
   }, lastSettle + 500);
 }
 
-/* -------------------- Dés libres --------------------------------------- */
 function changeMult(delta){
   diceMult = Math.max(1, Math.min(10, diceMult + delta));
   $('freeMultLabel').textContent = '×' + diceMult;
@@ -700,13 +807,14 @@ function shortRest(){
   saveState(); render();
   initAudio(); sfxLevel();
   toast('Repos court · +' + spGain + ' SP · Wounds & Limit Break refresh');
+  logRoll('Repos court', '+' + spGain + ' SP');
 }
 
 /* -------------------- Niveau supérieur --------------------------------- */
 function levelUp(){
   const f = active();
   if(!f.classes || f.classes.length === 0){
-    alert('Ajoute d\'abord une classe via le bouton Éditer (✎).');
+    alert('Ajoute d\'abord une classe via la page PLUS → Éditer.');
     return;
   }
   const c = f.classes[0];
@@ -744,7 +852,7 @@ function applyLevelUp(){
   c.niveau++;
   saveState(); render();
   closeModal('lvlOverlay');
-  toast('Niveau appliqué. Ouvre Éditer (✎) pour assigner ton +1 attribut et tes choix.');
+  toast('Niveau appliqué. Ouvre Éditer (PLUS) pour assigner ton +1 attribut et tes choix.');
 }
 
 /* -------------------- Édition de fiche --------------------------------- */
@@ -898,9 +1006,6 @@ function renderOptsList(){
 }
 
 /* -------------------- Inventaire & Apprentissages ---------------------- */
-let currentInvTab = 'perks';
-let editingItem = null; // { cat, item, isNew }
-
 const INV_CATS = {
   perks:    { label: 'PERKS',    field: 'perks',    defaultColor: 'blue' },
   sorts:    { label: 'SORTS',    field: 'sorts',    defaultColor: 'pink' },
@@ -911,53 +1016,67 @@ const INV_CATS = {
 };
 const ITEM_COLORS = ['blue','gold','teal','pink','red','green','purple','gray'];
 
-function renderInventory(){
-  const f = active();
-  const tabsWrap = $('invTabs');
-  const listWrap = $('invList');
+const CAPA_KEYS  = ['perks', 'sorts', 'melodies'];
+const EQUIP_KEYS = ['weapons', 'armors', 'tools'];
 
-  /* onglets avec compteur */
+function renderInventoryPages(){
+  renderInvSection('capacites', CAPA_KEYS,  currentInvCapa,  'capaTabs',  'capaList');
+  renderInvSection('equipement', EQUIP_KEYS, currentInvEquip, 'equipTabs', 'equipList');
+}
+
+function renderInvSection(page, keys, currentKey, tabsId, listId){
+  const f = active();
+  const tabsWrap = $(tabsId);
+  const listWrap = $(listId);
+
   tabsWrap.innerHTML = '';
-  Object.entries(INV_CATS).forEach(([key, cfg]) => {
+  keys.forEach(key => {
+    const cfg = INV_CATS[key];
     const tab = document.createElement('button');
-    tab.className = 'inv-tab' + (currentInvTab === key ? ' active' : '');
+    tab.className = 'inv-tab' + (currentKey === key ? ' active' : '');
     const count = (f[cfg.field] || []).length;
     tab.textContent = cfg.label + (count > 0 ? ' (' + count + ')' : '');
-    tab.onclick = () => { currentInvTab = key; renderInventory(); };
+    tab.onclick = () => {
+      if(page === 'capacites') currentInvCapa = key;
+      else currentInvEquip = key;
+      renderInventoryPages();
+    };
     tabsWrap.appendChild(tab);
   });
 
-  /* items de l'onglet actif */
   listWrap.innerHTML = '';
-  const cfg = INV_CATS[currentInvTab];
+  const cfg = INV_CATS[currentKey];
   const items = f[cfg.field] || [];
   if(items.length === 0){
     const empty = document.createElement('div');
     empty.className = 'empty-hint';
-    empty.textContent = 'Aucun élément dans ' + cfg.label.toLowerCase() + ' pour l\'instant.';
+    empty.textContent = 'Aucun élément dans ' + cfg.label.toLowerCase() + '.';
     listWrap.appendChild(empty);
   } else {
-    items.forEach(item => listWrap.appendChild(renderItemCard(currentInvTab, item)));
+    items.forEach(item => listWrap.appendChild(renderItemCard(currentKey, item)));
   }
 
-  /* bouton + AJOUTER */
   const addBtn = document.createElement('button');
   addBtn.className = 'add-item-btn';
-  addBtn.textContent = '+ AJOUTER UN ' + cfg.label.replace(/S$/, '').replace(/ELODIES/, 'ÉLODIE');
-  // petit ajustement français : MELODIES → MÉLODIE, OBJETS → OBJET, etc.
-  if(currentInvTab === 'melodies') addBtn.textContent = '+ AJOUTER UNE MÉLODIE';
-  else if(currentInvTab === 'weapons') addBtn.textContent = '+ AJOUTER UNE ARME';
-  else if(currentInvTab === 'armors') addBtn.textContent = '+ AJOUTER UNE ARMURE';
-  else if(currentInvTab === 'tools') addBtn.textContent = '+ AJOUTER UN OBJET';
-  else if(currentInvTab === 'sorts') addBtn.textContent = '+ AJOUTER UN SORT';
-  else if(currentInvTab === 'perks') addBtn.textContent = '+ AJOUTER UN PERK';
-  addBtn.onclick = () => openItemEditor(currentInvTab, null);
+  let addLabel = '+ AJOUTER';
+  if(currentKey === 'melodies')   addLabel = '+ AJOUTER UNE MÉLODIE';
+  else if(currentKey === 'weapons') addLabel = '+ AJOUTER UNE ARME';
+  else if(currentKey === 'armors')  addLabel = '+ AJOUTER UNE ARMURE';
+  else if(currentKey === 'tools')   addLabel = '+ AJOUTER UN OBJET';
+  else if(currentKey === 'sorts')   addLabel = '+ AJOUTER UN SORT';
+  else if(currentKey === 'perks')   addLabel = '+ AJOUTER UN PERK';
+  addBtn.textContent = addLabel;
+  addBtn.onclick = () => openItemEditor(currentKey, null);
+  /* Le bouton add doit s'étendre sur 2 colonnes */
+  addBtn.style.gridColumn = '1 / -1';
   listWrap.appendChild(addBtn);
 }
 
 function renderItemCard(cat, item){
+  /* Carte compacte façon Drakonym : couleur + titre + meta + chevron */
   const card = document.createElement('div');
   card.className = 'item-card';
+  card.onclick = () => openItemEditor(cat, item);
 
   const colorBar = document.createElement('div');
   colorBar.className = 'ic-color';
@@ -982,52 +1101,13 @@ function renderItemCard(cat, item){
     body.appendChild(m);
   }
 
-  if(item.description){
-    const desc = document.createElement('div');
-    desc.className = 'ic-desc';
-    desc.textContent = item.description;
-    body.appendChild(desc);
-  }
-  if(item.properties){
-    const props = document.createElement('div');
-    props.className = 'ic-desc';
-    props.textContent = item.properties;
-    body.appendChild(props);
-  }
-
   card.appendChild(body);
 
-  const actions = document.createElement('div');
-  actions.className = 'ic-actions';
+  const chev = document.createElement('span');
+  chev.className = 'ic-chev';
+  chev.textContent = '▶';
+  card.appendChild(chev);
 
-  if(cat === 'weapons' || cat === 'armors'){
-    const eqBtn = document.createElement('button');
-    eqBtn.className = 'eq-btn' + (item.equipped ? ' on' : '');
-    eqBtn.textContent = item.equipped ? '★' : '☆';
-    eqBtn.title = item.equipped ? 'Désequiper' : 'Équiper';
-    eqBtn.onclick = () => toggleEquipped(cat, item.id);
-    actions.appendChild(eqBtn);
-  }
-
-  const editBtn = document.createElement('button');
-  editBtn.textContent = '✎';
-  editBtn.title = 'Éditer';
-  editBtn.onclick = () => openItemEditor(cat, item);
-  actions.appendChild(editBtn);
-
-  const delBtn = document.createElement('button');
-  delBtn.textContent = '×';
-  delBtn.className = 'del';
-  delBtn.title = 'Supprimer';
-  delBtn.onclick = () => {
-    if(!confirm('Supprimer « ' + (item.titre || item.nom) + ' » ?')) return;
-    const f = active();
-    f[INV_CATS[cat].field] = (f[INV_CATS[cat].field] || []).filter(i => i.id !== item.id);
-    saveState(); render();
-  };
-  actions.appendChild(delBtn);
-
-  card.appendChild(actions);
   return card;
 }
 
@@ -1045,8 +1125,6 @@ function buildItemMeta(cat, item){
   if(cat === 'weapons'){
     const bits = [];
     if(item.type) bits.push(item.type);
-    if(item.hands) bits.push(item.hands == 1 ? '1 main' : '2 mains');
-    if(item.range) bits.push(item.range);
     if(item.damage) bits.push(item.damage);
     if(item.counter) bits.push('CV ' + item.counter);
     return bits.join(' · ');
@@ -1055,7 +1133,6 @@ function buildItemMeta(cat, item){
     const bits = [];
     if(item.category) bits.push(item.category);
     if(item.def) bits.push('DEF ' + item.def);
-    if(item.min_body) bits.push('Min Body ' + item.min_body);
     return bits.join(' · ');
   }
   if(cat === 'tools'){
@@ -1084,7 +1161,6 @@ function openItemEditor(cat, item){
   $('itemTitle').value = src.titre || src.nom || '';
   $('itemDesc').value = src.description || '';
 
-  /* color picker */
   const cp = $('colorPicker');
   cp.innerHTML = '';
   ITEM_COLORS.forEach(c => {
@@ -1099,7 +1175,6 @@ function openItemEditor(cat, item){
     cp.appendChild(b);
   });
 
-  /* champs conditionnels */
   ['Sort','Melody','Weapon','Armor','Tool'].forEach(t => $('item' + t + 'Fields').style.display = 'none');
 
   if(cat === 'sorts'){
@@ -1142,9 +1217,6 @@ function saveItem(){
   const f = active();
   if(isNew) item.id = newId();
 
-  /* champ titre selon convention Drakonym :
-     perks/sorts/melodies → "titre"
-     weapons/armors/tools → "nom" */
   const titleField = (cat === 'perks' || cat === 'sorts' || cat === 'melodies') ? 'titre' : 'nom';
   item[titleField] = $('itemTitle').value.trim() || 'Sans nom';
   item.description = $('itemDesc').value.trim();
@@ -1201,12 +1273,16 @@ function deleteItem(){
 
 /* -------------------- Wiring ------------------------------------------- */
 function wire(){
-  $('ficheBtn').onclick    = openFichesModal;
-  $('btnEdit').onclick     = openEdit;
-  $('btnImport').onclick   = () => $('fileInput').click();
-  $('btnExport').onclick   = exportJson;
-  $('btnSettings').onclick = () => { renderOptsList(); openModal('settingsModal'); };
-  $('fileInput').onchange  = e => {
+  /* Navigation */
+  document.querySelectorAll('[data-page]').forEach(b => {
+    b.onclick = () => switchPage(b.dataset.page);
+  });
+
+  /* Fiche selector */
+  $('ficheBtn').onclick = openFichesModal;
+
+  /* Import file */
+  $('fileInput').onchange = e => {
     const f = e.target.files[0];
     if(f) importJson(f);
     e.target.value = '';
@@ -1227,9 +1303,16 @@ function init(){
   loadState();
   applyOpts();
   wire();
+  switchPage('fiche');
   render();
   registerSW();
+  /* Footer update */
   $('foot').textContent = 'LOA Compagnon v' + APP_VERSION + ' · ' + Object.keys(state.fiches).length + ' fiche(s)';
+
+  /* Tick périodique pour mettre à jour les "il y a Xs" dans la sidebar */
+  setInterval(() => {
+    if(currentPage === 'fiche' || document.querySelector('.right-sidebar')) renderSidebar();
+  }, 30000);
 }
 
 document.addEventListener('DOMContentLoaded', init);

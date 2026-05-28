@@ -12,103 +12,199 @@
 </head>
 <body class="opt-cursor opt-open opt-counter opt-lowhp opt-overdrive opt-floaters opt-corners opt-scan">
 
-  <!-- ===================== TOOLBAR ===================== -->
-  <div class="toolbar">
-    <button class="fiche-btn" id="ficheBtn"><span id="ficheBtnLabel">—</span></button>
-    <button class="icon-btn" id="btnEdit"     title="Éditer la fiche">✎</button>
-    <button class="icon-btn" id="btnImport"   title="Importer JSON">↓</button>
-    <button class="icon-btn" id="btnExport"   title="Exporter JSON">↑</button>
-    <button class="icon-btn" id="btnSettings" title="Réglages">⚙</button>
-    <input type="file" id="fileInput" accept="application/json" hidden>
-  </div>
+  <div class="app">
 
-  <!-- ===================== FENÊTRE PRINCIPALE ===================== -->
-  <div class="win" id="win">
-    <svg class="corner tl" viewBox="0 0 16 16"><path d="M0 0h6v2H4v2H2v2H0z" fill="currentColor"/><path d="M0 7h1v1H0zm2 0h1v1H2zm-2 2h1v1H0z" fill="currentColor"/></svg>
-    <svg class="corner tr" viewBox="0 0 16 16"><path d="M0 0h6v2H4v2H2v2H0z" fill="currentColor"/><path d="M0 7h1v1H0zm2 0h1v1H2zm-2 2h1v1H0z" fill="currentColor"/></svg>
-    <svg class="corner bl" viewBox="0 0 16 16"><path d="M0 0h6v2H4v2H2v2H0z" fill="currentColor"/><path d="M0 7h1v1H0zm2 0h1v1H2zm-2 2h1v1H0z" fill="currentColor"/></svg>
-    <svg class="corner br" viewBox="0 0 16 16"><path d="M0 0h6v2H4v2H2v2H0z" fill="currentColor"/><path d="M0 7h1v1H0zm2 0h1v1H2zm-2 2h1v1H0z" fill="currentColor"/></svg>
+    <!-- =========== LEFT NAV (desktop) =========== -->
+    <nav class="left-nav">
+      <div class="brand">
+        <div class="brand-title">LOA</div>
+        <div class="brand-sub">Compagnon</div>
+      </div>
+      <button class="nav-item active" data-page="fiche">
+        <span class="nav-icon">◆</span><span>FICHE</span>
+      </button>
+      <button class="nav-item" data-page="capacites">
+        <span class="nav-icon">✦</span><span>CAPACITÉS</span>
+      </button>
+      <button class="nav-item" data-page="equipement">
+        <span class="nav-icon">⚔</span><span>ÉQUIPEMENT</span>
+      </button>
+      <button class="nav-item" data-page="plus">
+        <span class="nav-icon">⋯</span><span>PLUS</span>
+      </button>
+      <button class="big-launch" onclick="openRoller()">⚀ LANCER</button>
+    </nav>
 
-    <div class="hero-head">
-      <div class="portrait"><span class="initial" id="initial">?</span></div>
-      <div class="hero-info">
-        <div class="row-name">
-          <span class="name" id="name">—</span>
-          <span class="od-tag">OVERDRIVE</span>
+    <!-- =========== MAIN AREA =========== -->
+    <main class="main-area">
+
+      <!-- Header (toujours visible) -->
+      <header class="hero-header" id="heroHeader">
+        <div class="portrait"><span class="initial" id="initial">?</span></div>
+        <div class="hero-info">
+          <div class="hero-name" id="heroName">—<span class="od-tag">OVERDRIVE</span></div>
+          <div class="hero-meta" id="heroMeta">—</div>
         </div>
-        <div class="meta" id="meta">—</div>
-      </div>
-    </div>
+        <div class="hero-level">
+          <span class="lbl">NIVEAU</span>
+          <span class="lvl" id="heroLevel">1</span>
+        </div>
+      </header>
 
-    <!-- STATS (6 attributs, Primary doré, clic = check rapide) -->
-    <div class="stats-row" id="statsRow"></div>
+      <!-- ====== PAGE FICHE ====== -->
+      <div class="page active" id="page-fiche">
 
-    <!-- JAUGES -->
-    <div class="gauges">
-      <div class="gauge"><span class="lbl">HP</span>
-        <div class="bar hp" id="hpbar"><div class="fill" id="hpfill"></div></div>
-        <span class="val" id="hpval">0/0</span>
-        <span class="adj"><button onclick="adjust('hp',-1)">−</button><button onclick="adjust('hp',1)">+</button></span>
-      </div>
-      <div class="gauge"><span class="lbl">SP</span>
-        <div class="bar sp"><div class="fill" id="spfill"></div></div>
-        <span class="val" id="spval">0/0</span>
-        <span class="adj"><button onclick="adjust('sp',-1)">−</button><button onclick="adjust('sp',1)">+</button></span>
-      </div>
-      <div class="gauge"><span class="lbl">MP</span>
-        <div class="bar mp"><div class="fill" id="mpfill"></div></div>
-        <span class="val" id="mpval">0/0</span>
-        <span class="adj"><button onclick="adjust('mp',-1)">−</button><button onclick="adjust('mp',1)">+</button></span>
-      </div>
-      <div class="gauge"><span class="lbl">DEF</span>
-        <div class="bar def"><div class="fill" id="deffill"></div></div>
-        <span class="val" id="defval">0/0</span>
-        <span class="adj"><button onclick="adjust('def',-1)">−</button><button onclick="adjust('def',1)">+</button></span>
-      </div>
-      <div class="gauge"><span class="lbl">WND</span>
-        <div class="bar wound"><div class="fill" id="woundfill"></div></div>
-        <span class="val" id="woundval">0/6</span>
-        <span class="adj"><button onclick="adjust('wounds',-1)">−</button><button onclick="adjust('wounds',1)">+</button></span>
-      </div>
-    </div>
+        <div class="panel">
+          <div class="section-h">ATTRIBUTS</div>
+          <div class="stats-row" id="statsRow"></div>
+        </div>
 
-    <div class="cd-row">
-      <div class="die" id="cddie">d4</div>
-      <div class="cd-txt">Dé de Classe<small id="cdsub">—</small></div>
-      <div class="cd-act">
-        <button class="btn" onclick="rollClassDie()">LANCER</button>
-        <button class="btn" onclick="useCDRecovery()" title="Soin hors-combat (1× entre repos)">SOIN CD</button>
+        <div class="panel">
+          <div class="section-h">JAUGES</div>
+          <div class="gauges">
+            <div class="gauge"><span class="lbl">HP</span>
+              <div class="bar hp" id="hpbar"><div class="fill" id="hpfill"></div></div>
+              <span class="val" id="hpval">0/0</span>
+              <span class="adj"><button onclick="adjust('hp',-1)">−</button><button onclick="adjust('hp',1)">+</button></span>
+            </div>
+            <div class="gauge"><span class="lbl">SP</span>
+              <div class="bar sp"><div class="fill" id="spfill"></div></div>
+              <span class="val" id="spval">0/0</span>
+              <span class="adj"><button onclick="adjust('sp',-1)">−</button><button onclick="adjust('sp',1)">+</button></span>
+            </div>
+            <div class="gauge"><span class="lbl">MP</span>
+              <div class="bar mp"><div class="fill" id="mpfill"></div></div>
+              <span class="val" id="mpval">0/0</span>
+              <span class="adj"><button onclick="adjust('mp',-1)">−</button><button onclick="adjust('mp',1)">+</button></span>
+            </div>
+            <div class="gauge"><span class="lbl">DEF</span>
+              <div class="bar def"><div class="fill" id="deffill"></div></div>
+              <span class="val" id="defval">0/0</span>
+              <span class="adj"><button onclick="adjust('def',-1)">−</button><button onclick="adjust('def',1)">+</button></span>
+            </div>
+            <div class="gauge"><span class="lbl">WND</span>
+              <div class="bar wound"><div class="fill" id="woundfill"></div></div>
+              <span class="val" id="woundval">0/6</span>
+              <span class="adj"><button onclick="adjust('wounds',-1)">−</button><button onclick="adjust('wounds',1)">+</button></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="section-h">DÉ DE CLASSE</div>
+          <div class="cd-row">
+            <div class="die" id="cddie">d4</div>
+            <div class="cd-txt">Dé de Classe<small id="cdsub">—</small></div>
+            <div class="cd-act">
+              <button class="btn" onclick="rollClassDie()">LANCER</button>
+              <button class="btn" onclick="useCDRecovery()" title="Soin hors-combat (1× entre repos)">SOIN CD</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="section-h">STATUTS</div>
+          <div class="statuses" id="statuses"></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-h">DERNIER JET</div>
+          <div class="log">
+            <div class="roll" id="rolltray"><span class="q">—</span></div>
+            <div class="res" id="rollres">—</div>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="statuses" id="statuses"></div>
+      <!-- ====== PAGE CAPACITÉS ====== -->
+      <div class="page" id="page-capacites">
+        <div class="panel">
+          <div class="inv-tabs" id="capaTabs"></div>
+          <div class="item-list" id="capaList"></div>
+        </div>
+      </div>
 
-    <!-- Inventaire & Apprentissages -->
-    <div class="inv-section">
-      <div class="inv-h">INVENTAIRE &amp; APPRENTISSAGES</div>
-      <div class="inv-tabs" id="invTabs"></div>
-      <div class="item-list" id="invList"></div>
-    </div>
+      <!-- ====== PAGE ÉQUIPEMENT ====== -->
+      <div class="page" id="page-equipement">
+        <div class="panel">
+          <div class="inv-tabs" id="equipTabs"></div>
+          <div class="item-list" id="equipList"></div>
+        </div>
+      </div>
 
-    <div class="log">
-      <div class="log-h">DERNIER JET</div>
-      <div class="roll" id="rolltray"><span class="q">—</span></div>
-      <div class="res" id="rollres">—</div>
-    </div>
+      <!-- ====== PAGE PLUS ====== -->
+      <div class="page" id="page-plus">
+        <div class="panel">
+          <div class="section-h">ACTIONS DE JEU</div>
+          <div class="action-grid">
+            <button onclick="shortRest()">🌙 REPOS COURT</button>
+            <button onclick="levelUp()">⬆ NIVEAU +</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="section-h">FICHE</div>
+          <div class="action-grid">
+            <button onclick="openEdit()">✎ ÉDITER</button>
+            <button onclick="document.getElementById('fileInput').click()">↓ IMPORTER</button>
+            <button onclick="exportJson()">↑ EXPORTER</button>
+            <button onclick="openModal('settingsModal')">⚙ RÉGLAGES</button>
+          </div>
+        </div>
+        <input type="file" id="fileInput" accept="application/json" hidden>
+      </div>
+
+      <div class="foot" id="foot">LOA Compagnon</div>
+    </main>
+
+    <!-- =========== RIGHT SIDEBAR (desktop) =========== -->
+    <aside class="right-sidebar">
+      <div class="sb-section">
+        <div class="sb-title">PERSONNAGE ACTIF</div>
+        <button class="fiche-btn" id="ficheBtn"><span id="ficheBtnLabel">—</span></button>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-title">ÉQUIPÉ</div>
+        <div class="sb-subtitle">ARMES</div>
+        <div id="sbWeapons"></div>
+        <div class="sb-subtitle">ARMURES</div>
+        <div id="sbArmors"></div>
+        <div class="sb-total" id="sbTotal"></div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-title">DERNIERS JETS</div>
+        <div id="sbRolls"></div>
+      </div>
+    </aside>
   </div>
 
-  <!-- ===================== ACTIONS DU JEU ===================== -->
-  <div class="actions">
-    <button class="btn" onclick="openRoller()">LANCER</button>
-    <button class="btn" onclick="shortRest()">REPOS COURT</button>
-    <button class="btn" onclick="levelUp()">NIVEAU +</button>
-  </div>
+  <!-- =========== BOTTOM NAV (mobile) =========== -->
+  <nav class="bottom-nav">
+    <div class="row">
+      <button class="bn-item active" data-page="fiche">
+        <span class="bn-icon">◆</span>
+        <span>FICHE</span>
+      </button>
+      <button class="bn-item" data-page="capacites">
+        <span class="bn-icon">✦</span>
+        <span>CAPA</span>
+      </button>
+      <button class="bn-item" data-page="equipement">
+        <span class="bn-icon">⚔</span>
+        <span>ÉQUIP</span>
+      </button>
+      <button class="bn-item" data-page="plus">
+        <span class="bn-icon">⋯</span>
+        <span>PLUS</span>
+      </button>
+    </div>
+  </nav>
+  <button class="fab-launch" onclick="openRoller()" title="Lancer un jet">⚀</button>
 
-  <div class="foot" id="foot">LOA Compagnon · Phase 1</div>
+  <!-- =========== MODALS =========== -->
 
-  <!-- ===================== MODALS ===================== -->
-
-  <!-- Modal jet de dés (modal d'animation pour tous les jets) -->
+  <!-- Modal d'animation des dés -->
   <div class="overlay" id="rollModal">
     <div class="roll-box">
       <div class="roll-title" id="rmTitle">JET DE DÉS</div>
@@ -120,19 +216,7 @@
     </div>
   </div>
 
-  <!-- Modal : choisir / créer / supprimer fiches -->
-  <div class="overlay" id="fichesModal">
-    <div class="modal-box">
-      <h3>FICHES</h3>
-      <div class="fiches-list" id="fichesList"></div>
-      <div class="actions-row">
-        <button class="btn" onclick="closeModal('fichesModal')">FERMER</button>
-        <button class="btn" onclick="closeModal('fichesModal');openModal('newFicheModal');document.getElementById('newFicheName').value='';document.getElementById('newFicheName').focus();">+ NOUVELLE</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal LANCER (onglets CHECK et DÉS LIBRES) -->
+  <!-- Modal LANCER (onglets CHECK / DÉS LIBRES) -->
   <div class="overlay" id="rollerModal">
     <div class="modal-box">
       <h3>NOUVEAU JET</h3>
@@ -187,6 +271,18 @@
     </div>
   </div>
 
+  <!-- Modal sélection / gestion des fiches -->
+  <div class="overlay" id="fichesModal">
+    <div class="modal-box">
+      <h3>FICHES</h3>
+      <div class="fiches-list" id="fichesList"></div>
+      <div class="actions-row">
+        <button class="btn" onclick="closeModal('fichesModal')">FERMER</button>
+        <button class="btn" onclick="closeModal('fichesModal');openModal('newFicheModal');document.getElementById('newFicheName').value='';document.getElementById('newFicheName').focus();">+ NOUVELLE</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal édition fiche -->
   <div class="overlay" id="editModal">
     <div class="modal-box">
@@ -231,7 +327,7 @@
     </div>
   </div>
 
-  <!-- Modal ajout de statut -->
+  <!-- Modal ajout statut -->
   <div class="overlay" id="statusModal">
     <div class="modal-box">
       <h3>AJOUTER UN STATUT</h3>
@@ -282,7 +378,7 @@
     </div>
   </div>
 
-  <!-- Modal édition d'item (perk, sort, mélodie, arme, armure, objet) -->
+  <!-- Modal édition d'item -->
   <div class="overlay" id="itemModal">
     <div class="modal-box">
       <h3 id="itemModalTitle">NOUVEAU</h3>
