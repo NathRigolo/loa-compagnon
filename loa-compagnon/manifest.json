@@ -1,0 +1,20 @@
+{
+  "name": "LOA Compagnon",
+  "short_name": "LOA",
+  "description": "Compagnon mobile et desktop pour gérer ta fiche de personnage Legends of Akeroth en partie.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c1f59",
+  "theme_color": "#14307e",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
