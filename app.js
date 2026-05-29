@@ -3,7 +3,7 @@
    Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.8.0';
+const APP_VERSION = '0.8.1';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -1968,19 +1968,37 @@ function wireRP(){
   });
 }
 
-/* -------------------- Mode Combat -------------------------------------- */
+/* -------------------- Mode Combat (HUD flottant) ----------------------- */
+let combatCollapsed = false;
+
 function toggleCombatMode(){
   combatModeActive = !combatModeActive;
-  const ov = $('combatOverlay');
+  const hud = $('combatHud');
   if(combatModeActive){
     renderCombatMode();
-    ov.classList.add('show');
+    hud.classList.add('show');
     document.body.classList.add('combat-on');
     initAudio(); sfxConfirm();
+    setTimeout(syncCombatPadding, 30);
   } else {
-    ov.classList.remove('show');
+    hud.classList.remove('show');
     document.body.classList.remove('combat-on');
+    document.documentElement.style.setProperty('--combat-hud-h', '0px');
   }
+}
+
+function toggleCombatCollapse(){
+  combatCollapsed = !combatCollapsed;
+  $('combatHud').classList.toggle('collapsed', combatCollapsed);
+  $('chudCollapseBtn').textContent = combatCollapsed ? '▸' : '▾';
+  setTimeout(syncCombatPadding, 30);
+}
+
+/* Pousse le contenu de la page sous le HUD pour ne rien masquer */
+function syncCombatPadding(){
+  if(!combatModeActive){ document.documentElement.style.setProperty('--combat-hud-h', '0px'); return; }
+  const h = $('combatHud').offsetHeight || 0;
+  document.documentElement.style.setProperty('--combat-hud-h', h + 'px');
 }
 
 function renderCombatMode(){
@@ -1988,7 +2006,7 @@ function renderCombatMode(){
   if(!f) return;
   $('cmName').textContent = f.nom || '—';
 
-  /* --- Vitals --- */
+  /* --- Vitals compacts (toujours visibles) --- */
   const vitals = [
     { key: 'hp',     lbl: 'HP',  cur: f.hp_current,      max: f.hp_max,      cls: 'hp'  },
     { key: 'def',    lbl: 'DEF', cur: f.defense_current, max: f.defense_max, cls: 'def' },
@@ -1999,92 +2017,65 @@ function renderCombatMode(){
   const vWrap = $('cmVitals');
   vWrap.innerHTML = '';
   vitals.forEach(v => {
-    const pct = v.max > 0 ? Math.round(100 * v.cur / v.max) : 0;
-    const row = document.createElement('div');
-    row.className = 'cm-vital';
-    const big = v.key === 'hp' || v.key === 'def';
-    row.innerHTML =
-      '<div class="cmv-top">'
-      + '<span class="cmv-lbl">' + v.lbl + '</span>'
-      + '<span class="cmv-val">' + v.cur + '<i>/' + v.max + '</i></span>'
-      + '</div>'
-      + '<div class="cmv-bar ' + v.cls + '"><div class="cmv-fill" style="width:' + pct + '%"></div></div>'
-      + '<div class="cmv-btns">'
-      + (big ? '<button onclick="adjust(\'' + v.key + '\',-5)">−5</button>' : '')
-      + '<button onclick="adjust(\'' + v.key + '\',-1)">−1</button>'
-      + '<button onclick="adjust(\'' + v.key + '\',1)">+1</button>'
-      + (big ? '<button onclick="adjust(\'' + v.key + '\',5)">+5</button>' : '')
-      + '</div>';
-    vWrap.appendChild(row);
+    const pill = document.createElement('div');
+    pill.className = 'chud-vital ' + v.cls;
+    pill.innerHTML =
+      '<button class="cv-minus" onclick="adjust(\'' + v.key + '\',-1)">−</button>'
+      + '<span class="cv-body"><span class="cv-lbl">' + v.lbl + '</span>'
+      + '<span class="cv-val">' + v.cur + '<i>/' + v.max + '</i></span></span>'
+      + '<button class="cv-plus" onclick="adjust(\'' + v.key + '\',1)">+</button>';
+    vWrap.appendChild(pill);
   });
 
-  /* --- Attaques (armes équipées) --- */
-  const aWrap = $('cmAttacks');
-  aWrap.innerHTML = '';
-  const weq = (f.weapons || []).filter(w => w.equipped);
-  if(weq.length === 0){
-    aWrap.innerHTML = '<div class="cm-empty">Aucune arme équipée (étoile sur la carte d\'arme)</div>';
-  } else {
-    weq.forEach(w => {
-      const b = document.createElement('button');
-      b.className = 'cm-attack-btn';
-      const base = (w.base_die_count || 1) + 'd' + (w.base_die_size || 8);
-      b.innerHTML = '<span class="cmab-name">⚔ ' + escapeHtml(w.nom || 'Arme') + '</span>'
-        + '<span class="cmab-meta">' + base + ' · ' + escapeHtml(w.type || '—') + '</span>';
-      b.onclick = () => openAttackModal(w);
-      aWrap.appendChild(b);
-    });
-  }
-
-  /* --- Actions --- */
+  /* --- Actions (armes équipées + actions clés + sorts/mélodies) --- */
   const actWrap = $('cmActions');
   actWrap.innerHTML = '';
-  const actions = [];
-  actions.push({ lbl: '⚀ Dé de Classe', fn: 'rollClassDie()', cls: '' });
-  actions.push({ lbl: '✚ Soin CD', fn: 'useCDRecovery()', cls: 'heal' });
-  actions.push({ lbl: '↺ Counter', fn: 'counterAttack()', cls: '' });
-  actions.push({ lbl: '⚀ Jet / Check', fn: 'openRoller()', cls: '' });
-  const isOverdrive = f.hp_current > 0 && f.hp_current < f.hp_max / 2 && !f.limit_break_used;
-  if(isOverdrive){
-    actions.push({ lbl: '★ LIMIT BREAK', fn: 'openLimitBreak()', cls: 'lb' });
-  }
-  actions.forEach(a => {
+
+  (f.weapons || []).filter(w => w.equipped).forEach(w => {
     const b = document.createElement('button');
-    b.className = 'cm-action-btn ' + a.cls;
-    b.innerHTML = a.lbl;
-    b.setAttribute('onclick', a.fn);
+    b.className = 'chud-btn atk';
+    b.innerHTML = '⚔ ' + escapeHtml(w.nom || 'Arme');
+    b.onclick = () => openAttackModal(w);
     actWrap.appendChild(b);
   });
 
-  /* --- Sorts & Mélodies (accès rapide) --- */
-  const sorts = f.sorts || [];
-  const melodies = f.melodies || [];
-  if(sorts.length || melodies.length){
-    const castWrap = document.createElement('div');
-    castWrap.className = 'cm-cast-row';
-    sorts.forEach(s => {
-      const b = document.createElement('button');
-      b.className = 'cm-cast cast';
-      b.innerHTML = '✦ ' + escapeHtml(s.titre || 'Sort') + '<i>SP ' + (s.sp_cost || 0) + '</i>';
-      b.onclick = () => castSpell(s);
-      castWrap.appendChild(b);
-    });
-    melodies.forEach(m => {
-      const b = document.createElement('button');
-      b.className = 'cm-cast melody';
-      b.innerHTML = '♪ ' + escapeHtml(m.titre || 'Mélodie') + '<i>MP ' + (m.mp_cost || 3) + '</i>';
-      b.onclick = () => playMelody(m);
-      castWrap.appendChild(b);
-    });
-    actWrap.appendChild(castWrap);
-  }
+  const mk = (label, handler, cls) => {
+    const b = document.createElement('button');
+    b.className = 'chud-btn ' + (cls || '');
+    b.innerHTML = label;
+    b.onclick = handler;
+    actWrap.appendChild(b);
+  };
+  mk('⚀ Dé Classe', rollClassDie);
+  mk('✚ Soin CD', useCDRecovery, 'heal');
+  mk('↺ Counter', counterAttack);
+  mk('⚀ Check', () => openRoller());
+  mk('+ Statut', openStatusModal);
+  const isOverdrive = f.hp_current > 0 && f.hp_current < f.hp_max / 2 && !f.limit_break_used;
+  if(isOverdrive) mk('★ Limit Break', openLimitBreak, 'lb');
+
+  /* Sorts & mélodies en accès rapide */
+  (f.sorts || []).forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'chud-btn cast';
+    b.innerHTML = '✦ ' + escapeHtml(s.titre || 'Sort') + ' <i>SP' + (s.sp_cost || 0) + '</i>';
+    b.onclick = () => castSpell(s);
+    actWrap.appendChild(b);
+  });
+  (f.melodies || []).forEach(m => {
+    const b = document.createElement('button');
+    b.className = 'chud-btn melody';
+    b.innerHTML = '♪ ' + escapeHtml(m.titre || 'Mélodie') + ' <i>MP' + (m.mp_cost || 3) + '</i>';
+    b.onclick = () => playMelody(m);
+    actWrap.appendChild(b);
+  });
 
   /* --- Statuts actifs --- */
   const stWrap = $('cmStatuses');
   stWrap.innerHTML = '';
   const sts = f.statuses || [];
   if(sts.length === 0){
-    stWrap.innerHTML = '<div class="cm-empty">Aucun statut actif</div>';
+    stWrap.innerHTML = '<span class="cm-empty">Aucun statut actif</span>';
   } else {
     sts.forEach(s => {
       const chip = document.createElement('span');
@@ -2097,15 +2088,7 @@ function renderCombatMode(){
     });
   }
 
-  /* --- Dernier jet (recopie du log fiche) --- */
-  const lr = $('cmLastRoll');
-  const last = (f._rollLog || [])[0];
-  if(last){
-    lr.innerHTML = '<span class="cmlr-label">' + escapeHtml(last.label) + '</span>'
-      + '<span class="cmlr-res">' + escapeHtml(last.result) + '</span>';
-  } else {
-    lr.textContent = '—';
-  }
+  syncCombatPadding();
 }
 
 /* Dégâts reçus : entament la DEF puis les HP (auto-Wound si HP→0) */
@@ -2185,6 +2168,7 @@ function init(){
   applyOpts();
   wire();
   wireRP();
+  window.addEventListener('resize', () => { if(combatModeActive) syncCombatPadding(); });
   switchPage('fiche');
   render();
   registerSW();

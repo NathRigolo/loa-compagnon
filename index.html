@@ -667,36 +667,23 @@
     </div>
   </div>
 
-  <!-- =========== MODE COMBAT (plein écran) =========== -->
-  <div class="combat-overlay" id="combatOverlay">
-    <div class="combat-head">
-      <span class="combat-title">⚔ COMBAT</span>
-      <span class="combat-name" id="cmName">—</span>
-      <button class="combat-exit" onclick="toggleCombatMode()">✕ QUITTER</button>
+  <!-- =========== MODE COMBAT (HUD flottant en haut) =========== -->
+  <div class="combat-hud" id="combatHud">
+    <div class="chud-head">
+      <span class="chud-title">⚔ COMBAT</span>
+      <span class="chud-name" id="cmName">—</span>
+      <button class="chud-mini" id="chudCollapseBtn" onclick="toggleCombatCollapse()" title="Replier / déplier">▾</button>
+      <button class="chud-mini close" onclick="toggleCombatMode()" title="Fermer le mode combat">✕</button>
     </div>
-    <div class="combat-scroll">
-
-      <div class="cm-vitals" id="cmVitals"></div>
-
-      <div class="cm-dmg-tool">
+    <div class="chud-vitals" id="cmVitals"></div>
+    <div class="chud-collapsible" id="chudBody">
+      <div class="chud-dmg">
         <input type="number" id="cmDmgAmount" placeholder="montant" min="0" inputmode="numeric">
         <button class="cm-dmg"  onclick="cmApplyDamage()">⚔ DÉGÂTS</button>
         <button class="cm-heal" onclick="cmApplyHeal()">✚ SOIN</button>
       </div>
-      <div class="cm-dmg-hint">Les dégâts entament la DEF puis les HP. Le soin restaure les HP.</div>
-
-      <div class="cm-section-label">ATTAQUER</div>
-      <div class="cm-attacks" id="cmAttacks"></div>
-
-      <div class="cm-section-label">ACTIONS</div>
-      <div class="cm-actions" id="cmActions"></div>
-
-      <div class="cm-section-label">STATUTS <button class="cm-add" onclick="openStatusModal()">+ AJOUTER</button></div>
-      <div class="cm-statuses" id="cmStatuses"></div>
-
-      <div class="cm-section-label">DERNIER JET</div>
-      <div class="cm-lastroll" id="cmLastRoll">—</div>
-
+      <div class="chud-actions" id="cmActions"></div>
+      <div class="chud-statuses" id="cmStatuses"></div>
     </div>
   </div>
 
