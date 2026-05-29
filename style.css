@@ -1266,8 +1266,8 @@ body.opt-scan .panel::after { opacity: 1; }
 }
 .cstep {
   flex: 1 1 0;
-  min-width: 120px;
-  padding: 10px 8px;
+  min-width: 128px;
+  padding: 10px 10px 11px;
   border-radius: 8px;
   background: rgba(255,255,255,.02);
   box-shadow: inset 0 0 0 2px var(--frame-dark);
@@ -1283,28 +1283,34 @@ body.opt-scan .panel::after { opacity: 1; }
 .cstep-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 .cstep-row button {
-  width: 38px; height: 38px;
+  width: 34px; height: 34px;
   flex-shrink: 0;
-  font-size: 18px;
+  font-size: 17px;
+  line-height: 1;
   color: #fff;
   background: rgba(0,0,0,.3);
   border: none;
   border-radius: 6px;
   cursor: pointer;
   box-shadow: inset 0 0 0 2px var(--frame-dark);
+  display: flex; align-items: center; justify-content: center;
 }
 .cstep-row button:active { background: var(--accent); color: var(--accent-shadow); }
 .cstep-val {
-  font-family: var(--pixel);
-  font-size: 14px;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--body);
+  font-weight: 800;
+  font-size: 17px;
   color: #fff;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.cstep-val i { font-size: 9px; color: var(--ink-dim); font-style: normal; }
+.cstep-val i { font-size: 11px; color: var(--ink-dim); font-style: normal; font-weight: 600; }
 .cstep.hp    { box-shadow: inset 0 0 0 2px #c4382a; }
 .cstep.hp .cstep-val    { color: #ff8a6a; }
 .cstep.wound .cstep-val { color: #ff8a6a; }
