@@ -33,6 +33,7 @@
         <span class="nav-icon">⋯</span><span>PLUS</span>
       </button>
       <button class="big-launch" onclick="openRoller()">⚀ LANCER</button>
+      <button class="big-combat" onclick="toggleCombatMode()">⚔ COMBAT</button>
     </nav>
 
     <!-- =========== MAIN AREA =========== -->
@@ -97,6 +98,24 @@
         </div>
 
         <div class="panel">
+          <div class="section-h">POINTS DE MÉLODIE <span class="mp-count" id="mpCount">0 / 6</span></div>
+          <div class="mp-sub">GAINS</div>
+          <div class="mp-btn-row">
+            <button class="mp-gain" onclick="gainMP(1,'héroïque')">+1 Héroïque</button>
+            <button class="mp-gain" onclick="gainMP(1,'Échec')">+1 Échec</button>
+            <button class="mp-gain" onclick="gainMP(1,'Landmark/Shrine/Dungeon')">+1 Lieu</button>
+            <button class="mp-gain" onclick="gainMP(1,'début de session')">+1 Session</button>
+            <button class="mp-gain" onclick="gainMP(2,'tombé à 0 HP')">+2 à 0 HP</button>
+          </div>
+          <div class="mp-sub">DÉPENSES</div>
+          <div class="mp-btn-row">
+            <button class="mp-spend" onclick="spendMP(1,'Aider un allié (Boon ou +1d6)')">Aider −1</button>
+            <button class="mp-spend" onclick="spendMP(1,'Utiliser ton Moment (Boon 2)')">Moment −1</button>
+            <button class="mp-spend" onclick="spendMP(2,'Altérer le récit')">Récit −2</button>
+          </div>
+        </div>
+
+        <div class="panel">
           <div class="section-h">DÉ DE CLASSE</div>
           <div class="cd-row">
             <div class="die" id="cddie">d4</div>
@@ -144,6 +163,7 @@
           <div class="section-h">ACTIONS DE JEU</div>
           <div class="action-grid">
             <button onclick="shortRest()">🌙 REPOS COURT</button>
+            <button onclick="downtime()">☀ DOWNTIME</button>
             <button onclick="levelUp()">⬆ NIVEAU +</button>
           </div>
         </div>
@@ -217,6 +237,7 @@
       </button>
     </div>
   </nav>
+  <button class="fab-combat" onclick="toggleCombatMode()" title="Mode combat">⚔</button>
   <button class="fab-launch" onclick="openRoller()" title="Lancer un jet">⚀</button>
 
   <!-- =========== MODALS =========== -->
@@ -229,6 +250,7 @@
       <div class="roll-sub" id="rmSub">—</div>
       <div class="roll-tray" id="rmTray"></div>
       <div class="roll-res-big" id="rmRes">—</div>
+      <button class="roll-reroll" id="rmReroll" onclick="rerollCheck()" style="display:none">↺ RELANCER (−2 MP)</button>
       <div class="roll-ok" id="rmOk" onclick="closeRollModal()">VALIDER</div>
     </div>
   </div>
@@ -259,6 +281,7 @@
             <input type="number" id="rollBanes" value="0" min="0" max="5">
           </div>
         </div>
+        <button class="mp-inline-btn" id="boonMpBtn" onclick="addBoonViaMP()">+ Boon (−1 MP)</button>
         <div class="actions-row">
           <button class="btn" onclick="closeModal('rollerModal')">FERMER</button>
           <button class="btn" id="rollerLaunchBtn" onclick="runCheck()">LANCER</button>
@@ -582,18 +605,13 @@
         </div>
         <div>
           <label>Affinity</label>
-          <select id="atkAffinity" onchange="updateWeakRow()">
+          <select id="atkAffinity">
             <option value="normal">Normal</option>
-            <option value="weak">Weak (vulnérable)</option>
+            <option value="weak">Weak (×2 dégâts)</option>
             <option value="resist">Resist (½ dégâts)</option>
             <option value="immune">Immune (0 dégâts)</option>
           </select>
         </div>
-      </div>
-
-      <div id="atkWeakRow" style="display:none">
-        <label>Bonus Weak (= attribut max de la créature)</label>
-        <input type="number" id="atkWeakBonus" value="0" min="0">
       </div>
 
       <div class="actions-row">
@@ -646,6 +664,39 @@
         <button class="btn" onclick="closeModal('classModal')">ANNULER</button>
         <button class="btn" onclick="saveClassOrJob()">ENREGISTRER</button>
       </div>
+    </div>
+  </div>
+
+  <!-- =========== MODE COMBAT (plein écran) =========== -->
+  <div class="combat-overlay" id="combatOverlay">
+    <div class="combat-head">
+      <span class="combat-title">⚔ COMBAT</span>
+      <span class="combat-name" id="cmName">—</span>
+      <button class="combat-exit" onclick="toggleCombatMode()">✕ QUITTER</button>
+    </div>
+    <div class="combat-scroll">
+
+      <div class="cm-vitals" id="cmVitals"></div>
+
+      <div class="cm-dmg-tool">
+        <input type="number" id="cmDmgAmount" placeholder="montant" min="0" inputmode="numeric">
+        <button class="cm-dmg"  onclick="cmApplyDamage()">⚔ DÉGÂTS</button>
+        <button class="cm-heal" onclick="cmApplyHeal()">✚ SOIN</button>
+      </div>
+      <div class="cm-dmg-hint">Les dégâts entament la DEF puis les HP. Le soin restaure les HP.</div>
+
+      <div class="cm-section-label">ATTAQUER</div>
+      <div class="cm-attacks" id="cmAttacks"></div>
+
+      <div class="cm-section-label">ACTIONS</div>
+      <div class="cm-actions" id="cmActions"></div>
+
+      <div class="cm-section-label">STATUTS <button class="cm-add" onclick="openStatusModal()">+ AJOUTER</button></div>
+      <div class="cm-statuses" id="cmStatuses"></div>
+
+      <div class="cm-section-label">DERNIER JET</div>
+      <div class="cm-lastroll" id="cmLastRoll">—</div>
+
     </div>
   </div>
 

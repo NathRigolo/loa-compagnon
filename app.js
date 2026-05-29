@@ -3,7 +3,7 @@
    Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.6.0';
+const APP_VERSION = '0.8.0';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -38,23 +38,23 @@ function emptyFiche(nom='Sans nom'){
 }
 
 const LOA_STATUSES = [
-  { nom: 'Blinded',      color: 'gray',   desc: 'Bane sur les Checks ciblant la vue.' },
-  { nom: 'Burning',      color: 'red',    desc: '1d6 Fire en début de round.' },
-  { nom: 'Charmed',      color: 'purple', desc: 'Considère la source comme allié.' },
-  { nom: 'Dazed',        color: 'purple', desc: 'Bane sur tous les Checks.' },
-  { nom: 'Exposed',      color: 'red',    desc: 'Les attaques contre toi ont Boon.' },
-  { nom: 'Frightened',   color: 'purple', desc: 'Bane sur les Checks près de la source.' },
-  { nom: 'Frozen',       color: 'blue',   desc: 'Ne peut ni bouger ni agir.' },
-  { nom: 'Knocked Down', color: 'gray',   desc: 'Au sol. Coûte 1 mouvement pour se relever.' },
-  { nom: 'Poisoned',     color: 'green',  desc: '1d4 en fin de round, escalade jusqu\'au max.' },
-  { nom: 'Pulled',       color: 'gray',   desc: 'Tiré vers la source.' },
-  { nom: 'Pushed',       color: 'gray',   desc: 'Repoussé loin de la source.' },
-  { nom: 'Rooted',       color: 'green',  desc: 'Ne peut pas bouger, peut agir.' },
-  { nom: 'Silenced',     color: 'gray',   desc: 'Ne peut pas lancer de sort.' },
-  { nom: 'Slowed',       color: 'gray',   desc: 'Mouvement divisé par 2.' },
-  { nom: 'Stunned',      color: 'yellow', desc: 'Perd son prochain tour.' },
-  { nom: 'Unseen',       color: 'gray',   desc: 'Ne peut pas être ciblé directement.' },
-  { nom: 'Weakened',     color: 'red',    desc: 'Dégâts physiques divisés par 2.' }
+  { nom: 'Blinded',      color: 'gray',   desc: 'Ne voit ni ne cible aucune créature. Les Checks de vue échouent. Fin du prochain tour.' },
+  { nom: 'Burning',      color: 'red',    desc: '1d6 Fire au début de chaque round. 1 Action pour éteindre.' },
+  { nom: 'Charmed',      color: 'purple', desc: 'Ne peut cibler la source du charme. Fin du prochain tour.' },
+  { nom: 'Dazed',        color: 'purple', desc: 'Une seule Action à son tour. Fin du prochain tour.' },
+  { nom: 'Exposed',      color: 'red',    desc: 'Le prochain coup ignore totalement la DEF. Retiré après avoir été touché.' },
+  { nom: 'Frightened',   color: 'purple', desc: 'Ne peut se déplacer vers la source. Fin du prochain tour.' },
+  { nom: 'Frozen',       color: 'blue',   desc: 'Ne peut bouger. Les attaques contre lui montent le Base Die d\'un cran. Fin du prochain tour.' },
+  { nom: 'Knocked Down', color: 'gray',   desc: 'Ne peut bouger. Les attaques contre lui lancent un Base Die de plus. 1 Action pour se relever.' },
+  { nom: 'Poisoned',     color: 'green',  desc: '1d4 en fin de round ; sur un max le dé monte d\'un cran (jusqu\'à d20). 1 Action + Check Body+Soul, ou antidote.' },
+  { nom: 'Pulled',       color: 'gray',   desc: 'Déplacé jusqu\'à 5 cases / 1 zone vers la source. Immédiat.' },
+  { nom: 'Pushed',       color: 'gray',   desc: 'Déplacé jusqu\'à 5 cases / 1 zone loin de la source. Immédiat.' },
+  { nom: 'Rooted',       color: 'green',  desc: 'Ne peut bouger ni faire d\'action nécessitant un déplacement. Fin du prochain tour.' },
+  { nom: 'Silenced',     color: 'gray',   desc: 'Ne peut lancer de sorts ni d\'Actions magiques. Fin du prochain tour.' },
+  { nom: 'Slowed',       color: 'gray',   desc: 'Speed tombe à 5 (Slow). Si déjà Slow : 2 Actions pour bouger. Fin du prochain tour.' },
+  { nom: 'Stunned',      color: 'gold',   desc: 'Ses Crits n\'explosent pas à son prochain tour. Fin du prochain tour.' },
+  { nom: 'Unseen',       color: 'gray',   desc: 'Ne peut être ciblé par une attaque. Ses attaques ne peuvent être contrées. Retiré dès qu\'il agit.' },
+  { nom: 'Weakened',     color: 'red',    desc: 'Prochaine attaque : dé de base réduit d\'un cran (min d4). Fin du prochain tour.' }
 ];
 
 function classDieSize(niveau){
@@ -85,6 +85,7 @@ let state = { fiches: {}, activeId: null };
 let opts  = {};
 let diceMult = 1;
 let currentPage = 'fiche';
+let combatModeActive = false;
 let currentInvCapa  = 'perks';
 let currentInvEquip = 'weapons';
 let selectedAttrs = [];
@@ -188,6 +189,7 @@ function render(){
   setBar('mp', f.mp_current, f.mp_max);
   setBar('def', f.defense_current, f.defense_max);
   setBar('wound', f.wounds_current, f.wounds_max);
+  if($('mpCount')) $('mpCount').textContent = f.mp_current + ' / ' + f.mp_max;
 
   const low = f.hp_current > 0 && f.hp_current < f.hp_max / 2;
   $('hpbar').classList.toggle('low', low);
@@ -206,6 +208,7 @@ function render(){
   renderSidebar();
   renderClassStrip();
   renderRP();
+  if(combatModeActive) renderCombatMode();
 
   $('ficheBtnLabel').textContent = f.nom || '—';
 }
@@ -435,6 +438,61 @@ function adjust(key, delta){
   }
   saveState(); render();
 }
+
+/* -------------------- MP : gains & dépenses ---------------------------- */
+function gainMP(amount, reason){
+  const f = active(); if(!f) return;
+  const before = f.mp_current;
+  f.mp_current = Math.min(f.mp_max, f.mp_current + amount);
+  const real = f.mp_current - before;
+  saveState(); render();
+  initAudio(); sfxConfirm();
+  if(real < amount && real === 0) toast('MP déjà au max (' + f.mp_max + ')');
+  else toast('+' + real + ' MP · ' + reason + (real < amount ? ' (plafonné)' : ''));
+}
+function spendMP(amount, reason){
+  const f = active(); if(!f) return;
+  if(f.mp_current < amount){
+    toast('Pas assez de MP (' + f.mp_current + '/' + amount + ')');
+    return;
+  }
+  f.mp_current -= amount;
+  saveState(); render();
+  initAudio(); sfxConfirm();
+  toast('−' + amount + ' MP · ' + reason);
+}
+
+/* -------------------- Counter (riposte défensive) ---------------------- */
+function counterAttack(){
+  const f = active(); if(!f) return;
+  /* Cherche une arme de mêlée équipée (Blade/Breaker/Lance) */
+  const melee = (f.weapons || []).filter(w =>
+    w.equipped && ['Blade','Breaker','Lance'].includes(w.type)
+  );
+  if(melee.length === 0){
+    toast('Aucune arme de mêlée équipée pour contrer (les armes Bow / sorts ne peuvent pas).');
+    return;
+  }
+  let weapon = melee[0];
+  /* Si plusieurs, prend celle au plus haut Counter Value */
+  melee.forEach(w => { if((w.counter || 0) > (weapon.counter || 0)) weapon = w; });
+
+  const primary = f.attributs[f.primary] || 0;
+  const halfPrimary = Math.ceil(primary / 2); // arrondi en faveur du joueur (p.9)
+  const total = (weapon.counter || 0) + halfPrimary;
+
+  initAudio(); sfxConfirm();
+  toast('↺ Counter · ' + total + ' dégâts (' + (weapon.counter || 0) + ' + ' + halfPrimary + ' ½' + f.primary + ')');
+  logRoll('Counter · ' + (weapon.nom || ''),
+    total + ' dégâts plats (pas de jet, pas de crit, pas de DEF break)');
+
+  /* Mise à jour du dernier jet sur la fiche */
+  const lt = $('rolltray');
+  lt.innerHTML = '<span class="q">Counter · ' + escapeHtml(weapon.nom || '') + '</span>'
+    + '<span class="face hit">' + total + '</span>';
+  $('rollres').className = 'res';
+  $('rollres').innerHTML = total + ' dégâts <span>· riposte plate</span>';
+}
 function floater(text, cls){
   if(opts.floaters === false) return;
   const header = $('heroHeader'), bar = $('hpbar');
@@ -530,11 +588,15 @@ function openRollModal(title, q, sub){
   $('rmRes').className = 'roll-res-big';
   $('rmRes').textContent = '';
   $('rmOk').classList.remove('ready');
+  if($('rmReroll')) $('rmReroll').style.display = 'none';
   const box = document.querySelector('#rollModal .roll-box');
   box.classList.remove('crit');
   $('rollModal').classList.add('show');
 }
-function closeRollModal(){ $('rollModal').classList.remove('show'); }
+function closeRollModal(){
+  $('rollModal').classList.remove('show');
+  if(combatModeActive) renderCombatMode();
+}
 
 /* -------------------- Roller (modal unifié CHECK / DÉS LIBRES) ---------- */
 function openRoller(preselect){
@@ -609,21 +671,51 @@ function updatePool(){
   }
 }
 
+function addBoonViaMP(){
+  const f = active(); if(!f) return;
+  if(f.mp_current < 1){ toast('Pas assez de MP (besoin de 1)'); return; }
+  f.mp_current -= 1;
+  const cur = parseInt($('rollBoons').value) || 0;
+  $('rollBoons').value = Math.min(5, cur + 1);
+  saveState(); render();
+  initAudio(); sfxConfirm();
+  toast('−1 MP · +1 Boon ajouté à ce jet');
+}
+
+let lastCheck = null;
+
 function runCheck(){
-  const f = active();
   if(selectedAttrs.length === 0) return;
   const boons = parseInt($('rollBoons').value) || 0;
   const banes = parseInt($('rollBanes').value) || 0;
   closeModal('rollerModal');
+  _doCheck(selectedAttrs.slice(), boons, banes);
+}
+
+function rerollCheck(){
+  const f = active();
+  if(!lastCheck) return;
+  if(f.mp_current < 2){ toast('Pas assez de MP (besoin de 2)'); return; }
+  f.mp_current -= 2;
+  saveState(); render();
+  initAudio(); sfxConfirm();
+  toast('−2 MP · relance du dernier Check');
+  closeRollModal();
+  setTimeout(() => _doCheck(lastCheck.attrs, lastCheck.boons, lastCheck.banes), 280);
+}
+
+function _doCheck(attrs, boons, banes){
+  const f = active();
+  lastCheck = { attrs: attrs.slice(), boons, banes };
 
   let n, label;
-  if(selectedAttrs.length === 1){
-    const a = selectedAttrs[0];
+  if(attrs.length === 1){
+    const a = attrs[0];
     const v = f.attributs[a] || 0;
     n = Math.max(1, v * 2);
     label = a + ' (×2)';
   } else {
-    const a = selectedAttrs[0], b = selectedAttrs[1];
+    const a = attrs[0], b = attrs[1];
     const va = f.attributs[a] || 0;
     const vb = f.attributs[b] || 0;
     n = Math.max(1, va + vb);
@@ -713,6 +805,12 @@ function finishCheck(dice, label){
   lr.innerHTML = succ + ' succès <span>— ' + tier + '</span>';
 
   logRoll('Check · ' + label, succ + ' succès · ' + tier, { crit: isCrit, fail: isFail });
+
+  /* Option de relance via MP (2 MP) */
+  if($('rmReroll')){
+    const f = active();
+    $('rmReroll').style.display = (f && f.mp_current >= 2) ? '' : 'none';
+  }
 }
 
 function rollClassDie(){
@@ -808,21 +906,39 @@ function shortRest(){
   if(f.short_rests_taken >= f.short_rests_max){
     if(!confirm('Tu as déjà pris ' + f.short_rests_max + ' Repos courts ce Downtime. Continuer quand même ?')) return;
   } else {
-    if(!confirm('Prendre un Repos court ?\n\n• Wounds remises à zéro\n• Soin du Dé de Classe réinitialisé\n• Limit Break refresh\n• +SP égal à un jet du Dé de Classe')) return;
+    if(!confirm('Prendre un Repos court ?\n\n• Retire 1 Wound\n• Soin du Dé de Classe réinitialisé\n• Limit Break refresh\n• +SP égal à un jet du Dé de Classe')) return;
   }
   const cd = getClassDie(f);
   const dice = [];
   for(let i = 0; i < cd.count; i++) dice.push(rollD(cd.size));
   const spGain = dice.reduce((a,b) => a+b, 0) + cd.bonus;
   f.sp_current = Math.min(f.sp_max, f.sp_current + spGain);
-  f.wounds_current = 0;
+  const woundsBefore = f.wounds_current;
+  f.wounds_current = Math.max(0, f.wounds_current - 1);
   f.class_die_recovery_used = false;
   f.limit_break_used = false;
   f.short_rests_taken++;
   saveState(); render();
   initAudio(); sfxLevel();
-  toast('Repos court · +' + spGain + ' SP · Wounds & Limit Break refresh');
-  logRoll('Repos court', '+' + spGain + ' SP');
+  const woundTxt = woundsBefore > 0 ? ' · −1 Wound' : '';
+  toast('Repos court · +' + spGain + ' SP' + woundTxt + ' · Limit Break refresh');
+  logRoll('Repos court', '+' + spGain + ' SP' + woundTxt);
+}
+
+function downtime(){
+  const f = active();
+  if(!confirm('Prendre un Downtime (24 h) ?\n\n• HP, SP et DEF au maximum\n• Toutes les Wounds effacées\n• Repos courts remis à 3\n• Limit Break et soin du Dé de Classe refresh\n\n(Les MP sont conservés)')) return;
+  f.hp_current = f.hp_max;
+  f.sp_current = f.sp_max;
+  f.defense_current = f.defense_max;
+  f.wounds_current = 0;
+  f.short_rests_taken = 0;
+  f.class_die_recovery_used = false;
+  f.limit_break_used = false;
+  saveState(); render();
+  initAudio(); sfxLevel();
+  toast('Downtime · récupération complète');
+  logRoll('Downtime', 'Récupération complète');
 }
 
 /* -------------------- Niveau supérieur --------------------------------- */
@@ -1380,8 +1496,6 @@ function openAttackModal(weapon){
   });
   $('atkDef').value = 0;
   $('atkAffinity').value = 'normal';
-  $('atkWeakBonus').value = 0;
-  $('atkWeakRow').style.display = 'none';
   updateTriangleDisplay();
 
   openModal('attackModal');
@@ -1419,18 +1533,13 @@ function updateTriangleDisplay(){
   }
 }
 
-function updateWeakRow(){
-  $('atkWeakRow').style.display = $('atkAffinity').value === 'weak' ? '' : 'none';
-}
-
 function executeAttack(){
   const w = attackCtx.weapon;
   const f = active();
   const opp = {
     type:      attackCtx.oppType,
     def:       parseInt($('atkDef').value) || 0,
-    affinity:  $('atkAffinity').value,
-    weakBonus: parseInt($('atkWeakBonus').value) || 0
+    affinity:  $('atkAffinity').value
   };
   const adv = weaponTriangle(w.type, opp.type);
   closeModal('attackModal');
@@ -1485,9 +1594,9 @@ function doAttackResolve(weapon, opp, triangleAdv, fiche){
   const afterDef = Math.max(0, rawDamage - opp.def);
   const defBroken = opp.def > 0 && rawDamage >= opp.def;
 
-  /* Affinity (après DEF) */
+  /* Affinity (après DEF) — table p.134 : Weak double, Resist ÷2 arrondi bas, Immune 0 */
   let finalDamage = afterDef;
-  if(opp.affinity === 'weak')        finalDamage = afterDef + opp.weakBonus;
+  if(opp.affinity === 'weak')        finalDamage = afterDef * 2;
   else if(opp.affinity === 'resist') finalDamage = Math.floor(afterDef / 2);
   else if(opp.affinity === 'immune') finalDamage = 0;
 
@@ -1502,7 +1611,6 @@ function doAttackResolve(weapon, opp, triangleAdv, fiche){
     afterDef,
     defBroken,
     affinity: opp.affinity,
-    weakBonus: opp.weakBonus,
     finalDamage,
     counterValue: weapon.counter || 0
   };
@@ -1560,7 +1668,7 @@ function showAttackResult(weapon, opp, result, triangleAdv){
     bd += ' = <b>' + result.rawDamage + '</b>';
     if(opp.def) bd += '<br>DEF −' + opp.def + ' → <b>' + result.afterDef + '</b>';
     if(result.defBroken) bd += ' <span style="color:#ff8a6a">✦ DEF BROKEN</span>';
-    if(result.affinity === 'weak')        bd += '<br>Weak +' + result.weakBonus + ' → <b>' + result.finalDamage + '</b>';
+    if(result.affinity === 'weak')        bd += '<br>Weak ×2 → <b>' + result.finalDamage + '</b>';
     else if(result.affinity === 'resist') bd += '<br>Resist ÷2 → <b>' + result.finalDamage + '</b>';
     else if(result.affinity === 'immune') bd += '<br>Immune → <b>0</b>';
 
@@ -1858,6 +1966,190 @@ function wireRP(){
       }, 400);
     });
   });
+}
+
+/* -------------------- Mode Combat -------------------------------------- */
+function toggleCombatMode(){
+  combatModeActive = !combatModeActive;
+  const ov = $('combatOverlay');
+  if(combatModeActive){
+    renderCombatMode();
+    ov.classList.add('show');
+    document.body.classList.add('combat-on');
+    initAudio(); sfxConfirm();
+  } else {
+    ov.classList.remove('show');
+    document.body.classList.remove('combat-on');
+  }
+}
+
+function renderCombatMode(){
+  const f = active();
+  if(!f) return;
+  $('cmName').textContent = f.nom || '—';
+
+  /* --- Vitals --- */
+  const vitals = [
+    { key: 'hp',     lbl: 'HP',  cur: f.hp_current,      max: f.hp_max,      cls: 'hp'  },
+    { key: 'def',    lbl: 'DEF', cur: f.defense_current, max: f.defense_max, cls: 'def' },
+    { key: 'sp',     lbl: 'SP',  cur: f.sp_current,      max: f.sp_max,      cls: 'sp'  },
+    { key: 'mp',     lbl: 'MP',  cur: f.mp_current,      max: f.mp_max,      cls: 'mp'  },
+    { key: 'wounds', lbl: 'WND', cur: f.wounds_current,  max: f.wounds_max,  cls: 'wound' }
+  ];
+  const vWrap = $('cmVitals');
+  vWrap.innerHTML = '';
+  vitals.forEach(v => {
+    const pct = v.max > 0 ? Math.round(100 * v.cur / v.max) : 0;
+    const row = document.createElement('div');
+    row.className = 'cm-vital';
+    const big = v.key === 'hp' || v.key === 'def';
+    row.innerHTML =
+      '<div class="cmv-top">'
+      + '<span class="cmv-lbl">' + v.lbl + '</span>'
+      + '<span class="cmv-val">' + v.cur + '<i>/' + v.max + '</i></span>'
+      + '</div>'
+      + '<div class="cmv-bar ' + v.cls + '"><div class="cmv-fill" style="width:' + pct + '%"></div></div>'
+      + '<div class="cmv-btns">'
+      + (big ? '<button onclick="adjust(\'' + v.key + '\',-5)">−5</button>' : '')
+      + '<button onclick="adjust(\'' + v.key + '\',-1)">−1</button>'
+      + '<button onclick="adjust(\'' + v.key + '\',1)">+1</button>'
+      + (big ? '<button onclick="adjust(\'' + v.key + '\',5)">+5</button>' : '')
+      + '</div>';
+    vWrap.appendChild(row);
+  });
+
+  /* --- Attaques (armes équipées) --- */
+  const aWrap = $('cmAttacks');
+  aWrap.innerHTML = '';
+  const weq = (f.weapons || []).filter(w => w.equipped);
+  if(weq.length === 0){
+    aWrap.innerHTML = '<div class="cm-empty">Aucune arme équipée (étoile sur la carte d\'arme)</div>';
+  } else {
+    weq.forEach(w => {
+      const b = document.createElement('button');
+      b.className = 'cm-attack-btn';
+      const base = (w.base_die_count || 1) + 'd' + (w.base_die_size || 8);
+      b.innerHTML = '<span class="cmab-name">⚔ ' + escapeHtml(w.nom || 'Arme') + '</span>'
+        + '<span class="cmab-meta">' + base + ' · ' + escapeHtml(w.type || '—') + '</span>';
+      b.onclick = () => openAttackModal(w);
+      aWrap.appendChild(b);
+    });
+  }
+
+  /* --- Actions --- */
+  const actWrap = $('cmActions');
+  actWrap.innerHTML = '';
+  const actions = [];
+  actions.push({ lbl: '⚀ Dé de Classe', fn: 'rollClassDie()', cls: '' });
+  actions.push({ lbl: '✚ Soin CD', fn: 'useCDRecovery()', cls: 'heal' });
+  actions.push({ lbl: '↺ Counter', fn: 'counterAttack()', cls: '' });
+  actions.push({ lbl: '⚀ Jet / Check', fn: 'openRoller()', cls: '' });
+  const isOverdrive = f.hp_current > 0 && f.hp_current < f.hp_max / 2 && !f.limit_break_used;
+  if(isOverdrive){
+    actions.push({ lbl: '★ LIMIT BREAK', fn: 'openLimitBreak()', cls: 'lb' });
+  }
+  actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'cm-action-btn ' + a.cls;
+    b.innerHTML = a.lbl;
+    b.setAttribute('onclick', a.fn);
+    actWrap.appendChild(b);
+  });
+
+  /* --- Sorts & Mélodies (accès rapide) --- */
+  const sorts = f.sorts || [];
+  const melodies = f.melodies || [];
+  if(sorts.length || melodies.length){
+    const castWrap = document.createElement('div');
+    castWrap.className = 'cm-cast-row';
+    sorts.forEach(s => {
+      const b = document.createElement('button');
+      b.className = 'cm-cast cast';
+      b.innerHTML = '✦ ' + escapeHtml(s.titre || 'Sort') + '<i>SP ' + (s.sp_cost || 0) + '</i>';
+      b.onclick = () => castSpell(s);
+      castWrap.appendChild(b);
+    });
+    melodies.forEach(m => {
+      const b = document.createElement('button');
+      b.className = 'cm-cast melody';
+      b.innerHTML = '♪ ' + escapeHtml(m.titre || 'Mélodie') + '<i>MP ' + (m.mp_cost || 3) + '</i>';
+      b.onclick = () => playMelody(m);
+      castWrap.appendChild(b);
+    });
+    actWrap.appendChild(castWrap);
+  }
+
+  /* --- Statuts actifs --- */
+  const stWrap = $('cmStatuses');
+  stWrap.innerHTML = '';
+  const sts = f.statuses || [];
+  if(sts.length === 0){
+    stWrap.innerHTML = '<div class="cm-empty">Aucun statut actif</div>';
+  } else {
+    sts.forEach(s => {
+      const chip = document.createElement('span');
+      chip.className = 'cm-status-chip';
+      chip.setAttribute('data-c', s.color || 'gray');
+      chip.innerHTML = escapeHtml(s.nom) + (s.valeur ? ' ' + escapeHtml(s.valeur) : '') + ' <b>×</b>';
+      chip.title = (LOA_STATUSES.find(x => x.nom === s.nom) || {}).desc || '';
+      chip.onclick = () => removeStatus(s.id);
+      stWrap.appendChild(chip);
+    });
+  }
+
+  /* --- Dernier jet (recopie du log fiche) --- */
+  const lr = $('cmLastRoll');
+  const last = (f._rollLog || [])[0];
+  if(last){
+    lr.innerHTML = '<span class="cmlr-label">' + escapeHtml(last.label) + '</span>'
+      + '<span class="cmlr-res">' + escapeHtml(last.result) + '</span>';
+  } else {
+    lr.textContent = '—';
+  }
+}
+
+/* Dégâts reçus : entament la DEF puis les HP (auto-Wound si HP→0) */
+function cmApplyDamage(){
+  const f = active(); if(!f) return;
+  let amt = parseInt($('cmDmgAmount').value) || 0;
+  if(amt <= 0){ toast('Saisis un montant de dégâts'); return; }
+  const fromDef = Math.min(f.defense_current, amt);
+  f.defense_current -= fromDef;
+  const toHp = amt - fromDef;
+  let msg = '−' + amt + ' dégâts';
+  if(fromDef > 0) msg += ' (' + fromDef + ' DEF';
+  if(toHp > 0){
+    const before = f.hp_current;
+    f.hp_current = Math.max(0, before - toHp);
+    msg += (fromDef > 0 ? ' + ' : ' (') + toHp + ' HP)';
+    if(f.hp_current === 0 && before > 0 && f.wounds_current < f.wounds_max){
+      f.wounds_current = Math.min(f.wounds_max, f.wounds_current + 1);
+      msg += ' · Dying +1 Wound';
+    }
+  } else if(fromDef > 0){
+    msg += ' absorbés)';
+  }
+  $('cmDmgAmount').value = '';
+  saveState(); render();
+  initAudio(); sfxHit();
+  toast(msg);
+}
+function cmApplyHeal(){
+  const f = active(); if(!f) return;
+  let amt = parseInt($('cmDmgAmount').value) || 0;
+  if(amt <= 0){ toast('Saisis un montant de soin'); return; }
+  const before = f.hp_current;
+  /* Soin en état Dying : ramène à 1 HP (règle p.132) */
+  if(before === 0){
+    f.hp_current = 1;
+    toast('Soigné en Dying → 1 HP (Wounds conservées)');
+  } else {
+    f.hp_current = Math.min(f.hp_max, before + amt);
+    toast('+' + (f.hp_current - before) + ' HP');
+  }
+  $('cmDmgAmount').value = '';
+  saveState(); render();
+  initAudio(); sfxHeal();
 }
 
 /* -------------------- Wiring ------------------------------------------- */
