@@ -3,7 +3,7 @@
    Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.8.1';
+const APP_VERSION = '0.8.2';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -2004,41 +2004,33 @@ function syncCombatPadding(){
 function renderCombatMode(){
   const f = active();
   if(!f) return;
-  $('cmName').textContent = f.nom || '—';
 
-  /* --- Vitals compacts (toujours visibles) --- */
+  /* --- Steppers de ressources (boîtes propres) --- */
   const vitals = [
     { key: 'hp',     lbl: 'HP',  cur: f.hp_current,      max: f.hp_max,      cls: 'hp'  },
-    { key: 'def',    lbl: 'DEF', cur: f.defense_current, max: f.defense_max, cls: 'def' },
     { key: 'sp',     lbl: 'SP',  cur: f.sp_current,      max: f.sp_max,      cls: 'sp'  },
     { key: 'mp',     lbl: 'MP',  cur: f.mp_current,      max: f.mp_max,      cls: 'mp'  },
+    { key: 'def',    lbl: 'DÉF', cur: f.defense_current, max: f.defense_max, cls: 'def' },
     { key: 'wounds', lbl: 'WND', cur: f.wounds_current,  max: f.wounds_max,  cls: 'wound' }
   ];
   const vWrap = $('cmVitals');
   vWrap.innerHTML = '';
   vitals.forEach(v => {
-    const pill = document.createElement('div');
-    pill.className = 'chud-vital ' + v.cls;
-    pill.innerHTML =
-      '<button class="cv-minus" onclick="adjust(\'' + v.key + '\',-1)">−</button>'
-      + '<span class="cv-body"><span class="cv-lbl">' + v.lbl + '</span>'
-      + '<span class="cv-val">' + v.cur + '<i>/' + v.max + '</i></span></span>'
-      + '<button class="cv-plus" onclick="adjust(\'' + v.key + '\',1)">+</button>';
-    vWrap.appendChild(pill);
+    const box = document.createElement('div');
+    box.className = 'cstep ' + v.cls;
+    box.innerHTML =
+      '<div class="cstep-lbl">' + v.lbl + '</div>'
+      + '<div class="cstep-row">'
+      + '<button onclick="adjust(\'' + v.key + '\',-1)">−</button>'
+      + '<span class="cstep-val">' + v.cur + '<i>/' + v.max + '</i></span>'
+      + '<button onclick="adjust(\'' + v.key + '\',1)">+</button>'
+      + '</div>';
+    vWrap.appendChild(box);
   });
 
-  /* --- Actions (armes équipées + actions clés + sorts/mélodies) --- */
+  /* --- Actions (épuré : armes + Counter + Dé Classe + Lancer dés + LB) --- */
   const actWrap = $('cmActions');
   actWrap.innerHTML = '';
-
-  (f.weapons || []).filter(w => w.equipped).forEach(w => {
-    const b = document.createElement('button');
-    b.className = 'chud-btn atk';
-    b.innerHTML = '⚔ ' + escapeHtml(w.nom || 'Arme');
-    b.onclick = () => openAttackModal(w);
-    actWrap.appendChild(b);
-  });
-
   const mk = (label, handler, cls) => {
     const b = document.createElement('button');
     b.className = 'chud-btn ' + (cls || '');
@@ -2046,47 +2038,32 @@ function renderCombatMode(){
     b.onclick = handler;
     actWrap.appendChild(b);
   };
-  mk('⚀ Dé Classe', rollClassDie);
-  mk('✚ Soin CD', useCDRecovery, 'heal');
+  (f.weapons || []).filter(w => w.equipped).forEach(w => {
+    mk('⚔ ' + escapeHtml(w.nom || 'Arme'), () => openAttackModal(w), 'atk');
+  });
   mk('↺ Counter', counterAttack);
-  mk('⚀ Check', () => openRoller());
-  mk('+ Statut', openStatusModal);
+  mk('⚀ Dé Classe', rollClassDie);
+  mk('🎲 Lancer dés', () => openRoller(), 'dice');
   const isOverdrive = f.hp_current > 0 && f.hp_current < f.hp_max / 2 && !f.limit_break_used;
   if(isOverdrive) mk('★ Limit Break', openLimitBreak, 'lb');
-
-  /* Sorts & mélodies en accès rapide */
-  (f.sorts || []).forEach(s => {
-    const b = document.createElement('button');
-    b.className = 'chud-btn cast';
-    b.innerHTML = '✦ ' + escapeHtml(s.titre || 'Sort') + ' <i>SP' + (s.sp_cost || 0) + '</i>';
-    b.onclick = () => castSpell(s);
-    actWrap.appendChild(b);
-  });
-  (f.melodies || []).forEach(m => {
-    const b = document.createElement('button');
-    b.className = 'chud-btn melody';
-    b.innerHTML = '♪ ' + escapeHtml(m.titre || 'Mélodie') + ' <i>MP' + (m.mp_cost || 3) + '</i>';
-    b.onclick = () => playMelody(m);
-    actWrap.appendChild(b);
-  });
 
   /* --- Statuts actifs --- */
   const stWrap = $('cmStatuses');
   stWrap.innerHTML = '';
-  const sts = f.statuses || [];
-  if(sts.length === 0){
-    stWrap.innerHTML = '<span class="cm-empty">Aucun statut actif</span>';
-  } else {
-    sts.forEach(s => {
-      const chip = document.createElement('span');
-      chip.className = 'cm-status-chip';
-      chip.setAttribute('data-c', s.color || 'gray');
-      chip.innerHTML = escapeHtml(s.nom) + (s.valeur ? ' ' + escapeHtml(s.valeur) : '') + ' <b>×</b>';
-      chip.title = (LOA_STATUSES.find(x => x.nom === s.nom) || {}).desc || '';
-      chip.onclick = () => removeStatus(s.id);
-      stWrap.appendChild(chip);
-    });
-  }
+  const addBtn = document.createElement('button');
+  addBtn.className = 'cm-add-status';
+  addBtn.textContent = '+ STATUT';
+  addBtn.onclick = openStatusModal;
+  stWrap.appendChild(addBtn);
+  (f.statuses || []).forEach(s => {
+    const chip = document.createElement('span');
+    chip.className = 'cm-status-chip';
+    chip.setAttribute('data-c', s.color || 'gray');
+    chip.innerHTML = escapeHtml(s.nom) + (s.valeur ? ' ' + escapeHtml(s.valeur) : '') + ' <b>×</b>';
+    chip.title = (LOA_STATUSES.find(x => x.nom === s.nom) || {}).desc || '';
+    chip.onclick = () => removeStatus(s.id);
+    stWrap.appendChild(chip);
+  });
 
   syncCombatPadding();
 }

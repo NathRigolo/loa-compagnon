@@ -1192,7 +1192,7 @@ body.opt-scan .panel::after { opacity: 1; }
 .fab-combat:active { transform: scale(.92); }
 
 /* ==========================================================================
-   Mode Combat — HUD flottant docké en haut
+   Mode Combat — HUD flottant docké en haut (épuré, façon Drakonym)
    ========================================================================== */
 .combat-hud {
   position: fixed;
@@ -1200,129 +1200,168 @@ body.opt-scan .panel::after { opacity: 1; }
   z-index: 150;
   display: none;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px 12px 10px;
-  background: linear-gradient(180deg, #1a0e14 0%, #120b16 100%);
+  background: #140b10;
   border-bottom: 2px solid var(--frame-dark);
-  box-shadow: 0 6px 20px rgba(0,0,0,.5), inset 0 -1px 0 rgba(196,56,42,.4);
-  max-height: 70vh;
+  box-shadow: 0 6px 24px rgba(0,0,0,.55);
+  max-height: 78vh;
   overflow-y: auto;
 }
 .combat-hud.show { display: flex; }
 
-.chud-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.chud-title { font-family: var(--pixel); font-size: 9px; color: #ff8a6a; letter-spacing: 1px; }
-.chud-name {
+/* Barre rouge de désactivation */
+.chud-bar { position: relative; display: flex; }
+.chud-deactivate {
   flex: 1;
-  font-family: var(--pixel); font-size: 8px; color: var(--accent);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding: 12px 44px;
+  font-family: var(--pixel);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #fff;
+  text-align: center;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(180deg, #c4382a, #9a2a1e);
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.25);
 }
-.chud-mini {
+.chud-deactivate:hover { filter: brightness(1.08); }
+.chud-deactivate:active { filter: brightness(.95); }
+.chud-collapse {
+  position: absolute;
+  right: 8px; top: 50%;
+  transform: translateY(-50%);
   width: 30px; height: 30px;
   font-size: 12px; color: #fff;
-  background: rgba(0,0,0,.35);
+  background: rgba(0,0,0,.25);
   border: none; border-radius: 4px; cursor: pointer;
-  box-shadow: inset 0 0 0 2px var(--frame-dark);
+  box-shadow: inset 0 0 0 2px rgba(0,0,0,.3);
 }
-.chud-mini.close { color: #ff8a6a; }
-.chud-mini:active { transform: scale(.92); }
+.chud-collapse:active { transform: translateY(-50%) scale(.92); }
 
-/* Vitals (toujours visibles) */
-.chud-vitals { display: flex; flex-wrap: wrap; gap: 6px; }
-.chud-vital {
-  display: flex;
-  align-items: stretch;
-  border-radius: 5px;
-  overflow: hidden;
-  box-shadow: inset 0 0 0 2px var(--frame-dark);
-  background: rgba(8,18,60,.55);
-  flex: 1 1 auto;
-  min-width: 96px;
-}
-.chud-vital button {
-  width: 30px;
-  border: none;
-  color: #fff;
-  font-size: 16px;
-  cursor: pointer;
-  background: rgba(0,0,0,.3);
-}
-.chud-vital button:active { background: var(--accent); color: var(--accent-shadow); }
-.cv-body {
-  flex: 1;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 4px 6px;
-}
-.cv-lbl { font-family: var(--pixel); font-size: 7px; color: var(--ink-dim); letter-spacing: .5px; }
-.cv-val { font-family: var(--pixel); font-size: 12px; color: #fff; margin-top: 2px; }
-.cv-val i { font-size: 8px; color: var(--ink-dim); font-style: normal; }
-.chud-vital.hp    { box-shadow: inset 0 0 0 2px #c4382a; }
-.chud-vital.hp .cv-val { color: #ff8a6a; }
-.chud-vital.wound .cv-val { color: #ff8a6a; }
-
-/* Bloc repliable */
-.chud-collapsible {
+/* Conteneur centré sur desktop */
+.chud-inner {
+  max-width: 780px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 14px 16px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   overflow: hidden;
+  transition: max-height .2s ease, opacity .2s, padding .2s;
   max-height: 600px;
-  transition: max-height .2s ease, opacity .2s;
   opacity: 1;
 }
-.combat-hud.collapsed .chud-collapsible {
+.combat-hud.collapsed .chud-inner {
   max-height: 0;
   opacity: 0;
-  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
+/* Steppers de ressources (boîtes propres et espacées) */
+.chud-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.cstep {
+  flex: 1 1 0;
+  min-width: 120px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.02);
+  box-shadow: inset 0 0 0 2px var(--frame-dark);
+  text-align: center;
+}
+.cstep-lbl {
+  font-family: var(--pixel);
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  color: var(--ink-dimmer);
+  margin-bottom: 8px;
+}
+.cstep-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cstep-row button {
+  width: 38px; height: 38px;
+  flex-shrink: 0;
+  font-size: 18px;
+  color: #fff;
+  background: rgba(0,0,0,.3);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px var(--frame-dark);
+}
+.cstep-row button:active { background: var(--accent); color: var(--accent-shadow); }
+.cstep-val {
+  font-family: var(--pixel);
+  font-size: 14px;
+  color: #fff;
+  white-space: nowrap;
+}
+.cstep-val i { font-size: 9px; color: var(--ink-dim); font-style: normal; }
+.cstep.hp    { box-shadow: inset 0 0 0 2px #c4382a; }
+.cstep.hp .cstep-val    { color: #ff8a6a; }
+.cstep.wound .cstep-val { color: #ff8a6a; }
+
 /* Outil dégâts / soin */
-.chud-dmg { display: flex; gap: 6px; }
+.chud-dmg { display: flex; gap: 8px; }
 .chud-dmg input {
   flex: 1; min-width: 0;
-  padding: 10px; text-align: center;
+  padding: 12px; text-align: center;
   font-family: var(--pixel); font-size: 11px; color: #fff;
-  background: rgba(8,18,60,.55); border: none; border-radius: 4px;
+  background: rgba(255,255,255,.02); border: none; border-radius: 6px;
   box-shadow: inset 0 0 0 2px var(--frame-dark);
 }
 .chud-dmg button {
-  padding: 10px 12px;
-  font-family: var(--pixel); font-size: 8px; color: #fff;
-  border: none; border-radius: 4px; cursor: pointer;
+  padding: 12px 16px;
+  font-family: var(--pixel); font-size: 9px; color: #fff;
+  border: none; border-radius: 6px; cursor: pointer;
   box-shadow: 0 2px 0 var(--frame-dark); letter-spacing: .5px; white-space: nowrap;
 }
 .chud-dmg .cm-dmg  { background: linear-gradient(180deg, #c4382a, #7a1e15); }
 .chud-dmg .cm-heal { background: linear-gradient(180deg, #3fa34d, #1f6e2c); }
 .chud-dmg button:active { transform: translateY(1px); box-shadow: none; }
 
-/* Boutons d'action */
-.chud-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Boutons d'action (rangée propre) */
+.chud-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .chud-btn {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 9px 11px;
-  font-family: var(--pixel); font-size: 7px; color: #fff;
-  border: none; border-radius: 4px; cursor: pointer;
-  box-shadow: inset 0 0 0 2px var(--frame-dark), 0 1px 0 var(--frame-dark);
-  letter-spacing: .3px;
+  flex: 1 1 auto;
+  min-width: 120px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 12px 14px;
+  font-family: var(--pixel); font-size: 8px; color: #fff;
+  border: none; border-radius: 6px; cursor: pointer;
+  box-shadow: 0 2px 0 var(--frame-dark);
+  letter-spacing: .5px;
   background: linear-gradient(180deg, #3a63d6, #1d3da0);
 }
-.chud-btn i { font-style: normal; font-size: 7px; opacity: .85; }
+.chud-btn i { font-style: normal; font-size: 8px; opacity: .85; }
 .chud-btn.atk    { background: linear-gradient(180deg, #c4382a, #7a1e15); }
-.chud-btn.heal   { background: linear-gradient(180deg, #3fa34d, #1f6e2c); }
-.chud-btn.cast   { background: linear-gradient(180deg, #9a4fd0, #5b2d80); }
-.chud-btn.melody { background: linear-gradient(180deg, #c9a227, #7a5a10); color: #2a1f00; }
-.chud-btn.lb     { background: linear-gradient(180deg, #ffae3a, #c4382a); animation: lbPulse 1.2s ease-in-out infinite; }
-.chud-btn:active { transform: translateY(1px); box-shadow: inset 0 0 0 2px var(--frame-dark); }
+.chud-btn.wound  { background: linear-gradient(180deg, #8a2a4a, #5a1730); }
+.chud-btn.dice   { background: linear-gradient(180deg, #2a2f4a, #161a2e); }
+.chud-btn.lb     { background: linear-gradient(180deg, #ffae3a, #c4382a); color: #fff; animation: lbPulse 1.2s ease-in-out infinite; }
+.chud-btn:active { transform: translateY(1px); box-shadow: none; }
 
 /* Statuts actifs */
-.chud-statuses { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chud-statuses { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .cm-empty { font-size: 11px; color: var(--ink-dim); font-style: italic; }
+.cm-add-status {
+  padding: 7px 11px;
+  font-family: var(--pixel); font-size: 7px;
+  color: var(--ink-dim);
+  background: rgba(255,255,255,.05);
+  border: 2px dashed rgba(255,255,255,.18);
+  border-radius: 4px; cursor: pointer;
+}
+.cm-add-status:hover { color: var(--accent); border-color: var(--accent); }
 .cm-status-chip {
-  padding: 7px 10px;
+  padding: 8px 11px;
   font-family: var(--pixel); font-size: 7px; color: #fff;
   border-radius: 4px; cursor: pointer;
   box-shadow: inset 0 0 0 2px rgba(0,0,0,.35); letter-spacing: .3px;

@@ -669,16 +669,14 @@
 
   <!-- =========== MODE COMBAT (HUD flottant en haut) =========== -->
   <div class="combat-hud" id="combatHud">
-    <div class="chud-head">
-      <span class="chud-title">⚔ COMBAT</span>
-      <span class="chud-name" id="cmName">—</span>
-      <button class="chud-mini" id="chudCollapseBtn" onclick="toggleCombatCollapse()" title="Replier / déplier">▾</button>
-      <button class="chud-mini close" onclick="toggleCombatMode()" title="Fermer le mode combat">✕</button>
+    <div class="chud-bar">
+      <button class="chud-deactivate" onclick="toggleCombatMode()">⚔ MODE COMBAT ACTIF · DÉSACTIVER</button>
+      <button class="chud-collapse" id="chudCollapseBtn" onclick="toggleCombatCollapse()" title="Replier / déplier">▾</button>
     </div>
-    <div class="chud-vitals" id="cmVitals"></div>
-    <div class="chud-collapsible" id="chudBody">
+    <div class="chud-inner" id="chudBody">
+      <div class="chud-steps" id="cmVitals"></div>
       <div class="chud-dmg">
-        <input type="number" id="cmDmgAmount" placeholder="montant" min="0" inputmode="numeric">
+        <input type="number" id="cmDmgAmount" placeholder="dégâts / soin" min="0" inputmode="numeric">
         <button class="cm-dmg"  onclick="cmApplyDamage()">⚔ DÉGÂTS</button>
         <button class="cm-heal" onclick="cmApplyHeal()">✚ SOIN</button>
       </div>
