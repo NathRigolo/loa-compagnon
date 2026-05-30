@@ -3,7 +3,7 @@
    Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.9.1';
+const APP_VERSION = '0.9.2';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';

@@ -1601,6 +1601,25 @@ body.combat-on .right-sidebar { top: calc(var(--combat-hud-h, 0px) + 16px); }
 .collapse-body { margin-top: 10px; }
 .panel.collapse.collapsed .collapse-body { display: none; }
 
+/* Statuts compacts dans le panneau Jauges */
+.mini-h {
+  font-family: var(--pixel);
+  font-size: 7px;
+  color: var(--ink-dim);
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+}
+.gauge-statuses {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+/* Masquer le panneau Dernier Jet sur desktop (la sidebar l'affiche déjà) */
+@media (min-width: 1101px) {
+  .hide-desktop { display: none !important; }
+}
+
 /* ==========================================================================
    Overlays / Modals (inchangés)
    ========================================================================== */
