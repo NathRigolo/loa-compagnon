@@ -334,7 +334,9 @@ body.opt-scan .panel::after { opacity: 1; }
 /* ==========================================================================
    Jauges (HP, SP, MP, DEF, Wounds)
    ========================================================================== */
-.gauges { display: flex; flex-direction: column; gap: 8px; }
+.gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+.gauges .gauge:first-child { grid-column: 1 / -1; }
+@media (max-width: 560px) { .gauges { grid-template-columns: 1fr; } }
 .gauge { display: flex; align-items: center; gap: 8px; }
 .gauge .lbl {
   font-family: var(--pixel);
