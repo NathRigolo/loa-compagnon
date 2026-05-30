@@ -147,6 +147,17 @@
       <!-- ====== PAGE ÉQUIPEMENT ====== -->
       <div class="page" id="page-equipement">
         <div class="panel">
+          <div class="draviks-bar">
+            <span class="dv-icon">◈</span>
+            <span class="dv-label">DRAVIKS</span>
+            <span class="dv-val" id="charDraviks">0</span>
+            <span class="dv-btns">
+              <button onclick="adjCharDraviks(-10)">−10</button>
+              <button onclick="adjCharDraviks(-1)">−</button>
+              <button onclick="adjCharDraviks(1)">+</button>
+              <button onclick="adjCharDraviks(10)">+10</button>
+            </span>
+          </div>
           <div class="inv-tabs" id="equipTabs"></div>
           <div class="item-list" id="equipList"></div>
         </div>

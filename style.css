@@ -1693,6 +1693,31 @@ body.combat-on .right-sidebar { top: calc(var(--combat-hud-h, 0px) + 16px); }
 }
 .base-input::placeholder { color: var(--ink-dimmer); }
 
+/* ====== Barre Draviks (page Équipement) ====== */
+.draviks-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 11px 14px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: rgba(248,216,120,.08);
+  box-shadow: inset 0 0 0 2px var(--frame-dark);
+}
+.draviks-bar .dv-icon { color: var(--accent); font-size: 16px; }
+.draviks-bar .dv-label { font-family: var(--pixel); font-size: 9px; color: var(--accent); letter-spacing: 1px; }
+.draviks-bar .dv-val { font-family: var(--pixel); font-size: 16px; color: #fff; margin-left: auto; }
+.draviks-bar .dv-btns { display: flex; gap: 6px; }
+.draviks-bar .dv-btns button {
+  font-family: var(--pixel); font-size: 9px; color: #fff;
+  min-width: 38px; padding: 9px 6px; cursor: pointer; border: none; border-radius: 4px;
+  background: linear-gradient(180deg, #3a63d6, #1d3da0);
+  box-shadow: 0 0 0 2px var(--frame-dark), 0 2px 0 var(--frame-dark);
+}
+.draviks-bar .dv-btns button:active { transform: translateY(1px); }
+@media (max-width: 480px) { .draviks-bar .dv-val { margin-left: 0; } }
+
 
 /* Panneaux repliables */
 .collapse-h {

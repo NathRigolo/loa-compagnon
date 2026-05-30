@@ -3,7 +3,7 @@
    Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.13.0';
+const APP_VERSION = '0.13.1';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -1591,6 +1591,16 @@ const EQUIP_KEYS = ['weapons', 'armors', 'tools'];
 function renderInventoryPages(){
   renderInvSection('capacites', CAPA_KEYS,  currentInvCapa,  'capaTabs',  'capaList');
   renderInvSection('equipement', EQUIP_KEYS, currentInvEquip, 'equipTabs', 'equipList');
+  const dv = $('charDraviks');
+  if(dv) dv.textContent = (active().draviks || 0);
+}
+
+function adjCharDraviks(d){
+  const f = active();
+  f.draviks = Math.max(0, (f.draviks || 0) + d);
+  saveState();
+  const dv = $('charDraviks');
+  if(dv) dv.textContent = f.draviks;
 }
 
 function renderInvSection(page, keys, currentKey, tabsId, listId){
