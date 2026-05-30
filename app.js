@@ -3,7 +3,7 @@
    Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.10.0';
+const APP_VERSION = '0.11.0';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -2202,6 +2202,58 @@ const WIKI_SECTIONS = [
     rule:`<p><b>Repos court</b> — au moins 10 minutes, 3 maximum par Downtime. Tu récupères du SP (un jet de Dé de Classe), tu retires <b>1 Blessure</b>, et tu réarmes ton soin de Dé de Classe ainsi que ton Limit Break.</p>
     <p><b>Downtime</b> — une période de 24 h. Récupération <b>complète</b>&nbsp;: tous les HP, le SP, toutes les Blessures et les ressources dépensées.</p>
     <p><b>Soin du Dé de Classe</b> — une fois entre deux repos courts, hors combat, lance ton Dé de Classe pour récupérer autant de HP.</p>`
+  },
+  { id:'declasse', title:'LE DÉ DE CLASSE',
+    voice:`« Ton dé fétiche&nbsp;! Il grandit avec toi, comme une mauvaise habitude. »<span class="cold"> tout bas — </span>« Plus tu montes, plus il fait mal. Aux autres, surtout. »<span class="cold"> enjoué — </span>« Et il te recoud un peu entre deux bagarres, sympa non&nbsp;? »`,
+    rule:`<p>Tu lances un nombre de dés égal à ta valeur de <b>Primary</b>. La taille du dé dépend de ton <b>niveau total</b> (toutes classes et jobs cumulés)&nbsp;:</p>
+    <div class="wiki-tab">
+      <div class="r"><div class="b">Niv 1–2</div><div class="t"><b>d4</b></div></div>
+      <div class="r"><div class="b">3–4</div><div class="t"><b>d6</b></div></div>
+      <div class="r"><div class="b">5–6</div><div class="t"><b>d8</b></div></div>
+      <div class="r"><div class="b">7–8</div><div class="t"><b>d10</b></div></div>
+      <div class="r"><div class="b">9–10</div><div class="t"><b>d12</b></div></div>
+      <div class="r"><div class="b">11+</div><div class="t"><b>d12</b>, et +2 au jet par niveau au-delà de 10.</div></div>
+    </div>
+    <p>Son soin&nbsp;: une fois entre deux repos courts, hors combat, lance-le pour récupérer autant de HP.</p>`
+  },
+  { id:'limitbreak', title:'LIMIT BREAK & OVERDRIVE',
+    voice:`« Le grand moment&nbsp;! Quand ça sent le roussi, tu lâches tout. »<span class="cold"> glaçant — </span>« Au bord du gouffre, on frappe deux fois plus fort. La douleur aide. »<span class="cold"> ravi — </span>« Un coup pareil, ça ne rate jamais — mais ça peut crit, héhé&nbsp;! »`,
+    rule:`<p><b>Limit Break</b> — ton coup spécial. Utilisable <b>1× par repos court</b>, et il se recharge dès que tu tombes à la moitié de tes HP ou moins. Il prend tout ton tour, <b>ne peut pas rater</b>, mais peut critiquer.</p>
+    <p><b>Overdrive</b> — si tu es sous <b>50 %</b> de tes HP max <b>et</b> que tu n'as pas encore utilisé ton Limit Break, ses dégâts et effets sont <b>doublés</b>. En combat uniquement.</p>`
+  },
+  { id:'sorts', title:'LES SORTS',
+    voice:`« La magie&nbsp;! Six saveurs, deux façons de l'envoyer. »<span class="cold"> plus froid — </span>« Vise juste&nbsp;: un sort raté, c'est de l'énergie gâchée. Comme une vie. »<span class="cold"> pétillant — </span>« Allez, choisis ton Aspect et fais des étincelles&nbsp;! »`,
+    rule:`<p>Chaque sort a un <b>Aspect</b> lié à un Attribut&nbsp;:</p>
+    <p><b>Arcanum</b> → Mind &nbsp;·&nbsp; <b>Divine</b> → Gods &nbsp;·&nbsp; <b>Inheric</b> → Body<br><b>Radiant</b> → Soul &nbsp;·&nbsp; <b>Untamed</b> → World &nbsp;·&nbsp; <b>Voidcraft</b> → Shadow</p>
+    <p><b>Battlecast</b> — une cible unique au contact (Close), dégâts directs, <b>sans Check</b>.</p>
+    <p><b>Fieldcast</b> — touche une <b>zone</b> et demande un <b>Check</b> Primary + Aspect.</p>
+    <p>Contrairement aux armes, les sorts ne ratent pas sur un 1 et ne font pas exploser leurs dés.</p>`
+  },
+  { id:'melodie', title:'POINTS DE MÉLODIE',
+    voice:`« Les Points de Mélodie&nbsp;! La petite musique qui plie le récit à ta sauce. »<span class="cold"> tout bas — </span>« Chaque note a un prix. Tout se paie, toujours. »<span class="cold"> joyeux — </span>« Gardes-en sous le coude&nbsp;: ça sauve des vies — parfois la tienne&nbsp;! »`,
+    rule:`<p>Maximum <b>6</b> MP (<b>12</b> en solo). Ils se reportent d'une session à l'autre.</p>
+    <p><b>Gains</b></p>
+    <div class="wiki-tab">
+      <div class="r"><div class="b">+1</div><div class="t">Action héroïque.</div></div>
+      <div class="r"><div class="b">+1</div><div class="t">Sur un échec.</div></div>
+      <div class="r"><div class="b">+1</div><div class="t">Atteindre un Landmark, un Sanctuaire ou un Donjon.</div></div>
+      <div class="r"><div class="b">+1</div><div class="t">Début de session, si tu es à 0.</div></div>
+      <div class="r"><div class="b">+2</div><div class="t">Quand toi ou un allié tombez à 0 HP.</div></div>
+    </div>
+    <p><b>Dépenses</b></p>
+    <div class="wiki-tab">
+      <div class="r"><div class="b">−1</div><div class="t">Aider un allié (lui donner un Boon ou +1d6).</div></div>
+      <div class="r"><div class="b">−1</div><div class="t">Utiliser ton Moment.</div></div>
+      <div class="r"><div class="b">−2</div><div class="t">Altérer le récit.</div></div>
+    </div>`
+  },
+  { id:'statuts', title:'LES 17 STATUTS',
+    voice:`« Dix-sept misères à coller sur tes ennemis… ou à subir, gros malin&nbsp;! »<span class="cold"> murmure — </span>« Brûlé, gelé, empoisonné. La fin a tant de visages. »<span class="cold"> tout content — </span>« Tiens, je te les liste tous&nbsp;: cadeau&nbsp;! »`,
+    rule:`<p>Les Statuts s'appliquent en combat. Beaucoup se dissipent à la fin du prochain tour de la cible ; d'autres demandent une action ou un Check pour s'en débarrasser.</p>`
+      + LOA_STATUSES.map(function(s){
+          return '<div class="wiki-stat"><span class="chip" data-c="' + (s.color || 'gray') + '">'
+            + (s.nom || '').toUpperCase() + '</span><div class="wiki-stat-d">' + s.desc + '</div></div>';
+        }).join('')
   }
 ];
 

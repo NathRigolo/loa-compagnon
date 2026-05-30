@@ -1686,6 +1686,10 @@ body.combat-on .right-sidebar { top: calc(var(--combat-hud-h, 0px) + 16px); }
 .wiki-tab .t { flex: 1; padding: 9px 12px; font-size: 13.5px; line-height: 1.45; background: rgba(255,255,255,.03); color: #eaf0ff; }
 .wiki-tab .t b { color: var(--accent); }
 
+.wiki-stat { padding: 9px 0; border-top: 1px solid rgba(255,255,255,.07); }
+.wiki-stat .chip { cursor: default; }
+.wiki-stat-d { margin-top: 6px; font-size: 13px; line-height: 1.45; color: #d4ddf5; }
+
 /* ==========================================================================
    Overlays / Modals (inchangés)
    ========================================================================== */
