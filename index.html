@@ -177,6 +177,19 @@
           </div>
         </div>
         <div class="panel">
+          <div class="section-h">SUIVI DE PARTIE</div>
+          <div class="action-grid">
+            <button onclick="switchPage('clocks')" style="grid-column:1/-1">⏱ HORLOGES</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="section-h">GUILDE &amp; AIDE</div>
+          <div class="action-grid">
+            <button onclick="switchPage('base')">🏰 BASE DE GUILDE</button>
+            <button onclick="switchPage('aide')">📖 AIDE / RÈGLES</button>
+          </div>
+        </div>
+        <div class="panel">
           <div class="section-h">ROLEPLAY</div>
           <label class="rp-label">Apparence</label>
           <textarea class="rp-area" id="rpApparence" placeholder="Comment ressemble ton personnage…"></textarea>
@@ -188,6 +201,17 @@
           <textarea class="rp-area" id="rpNotes" placeholder="Idées, objectifs en cours, infos diverses…"></textarea>
         </div>
         <input type="file" id="fileInput" accept="application/json" hidden>
+      </div>
+
+      <!-- ====== PAGE HORLOGES (Clocks) ====== -->
+      <div class="page" id="page-clocks">
+        <button class="subpage-back" onclick="switchPage('plus')">‹ RETOUR</button>
+        <div class="panel">
+          <div class="section-h">HORLOGES <span class="clk-count" id="clkCount"></span></div>
+          <div class="clk-intro">Compteurs à segments pour suivre voyages, menaces, quêtes, profondeurs… <b>Progrès</b> : +1 sur un succès mitigé, +2 sur un succès complet. <b>Menace</b> : +1 sur un échec. Touche un segment pour remplir directement.</div>
+          <div id="clocksList"></div>
+          <button class="clk-add-btn" onclick="openClockModal()">+ NOUVELLE HORLOGE</button>
+        </div>
       </div>
 
       <div class="foot" id="foot">LOA Compagnon</div>
@@ -374,6 +398,38 @@
       <div class="actions-row">
         <button class="btn" onclick="closeModal('statusModal')">ANNULER</button>
         <button class="btn" onclick="addStatus()">AJOUTER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal HORLOGE (Clock) -->
+  <div class="overlay" id="clockModal">
+    <div class="modal-box">
+      <h3 id="clockModalTitle">NOUVELLE HORLOGE</h3>
+      <label>Nom</label>
+      <input type="text" id="clkName" placeholder="Traversée des Cendres, Garde alertée…">
+      <label>Type</label>
+      <select id="clkType" onchange="clockTypeChanged()"></select>
+      <div class="clk-type-hint" id="clkTypeHint">—</div>
+      <div class="row">
+        <div>
+          <label>Segments</label>
+          <select id="clkSize">
+            <option>4</option><option>6</option><option>8</option><option>10</option><option>12</option>
+          </select>
+        </div>
+        <div>
+          <label>Nature</label>
+          <select id="clkKind">
+            <option value="progress">Progrès</option>
+            <option value="threat">Menace</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions-row">
+        <button class="btn danger" id="clkDeleteBtn" onclick="deleteClockFromModal()" style="display:none">SUPPRIMER</button>
+        <button class="btn" onclick="closeModal('clockModal')">ANNULER</button>
+        <button class="btn" onclick="saveClock()">ENREGISTRER</button>
       </div>
     </div>
   </div>

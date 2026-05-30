@@ -3,7 +3,7 @@
    Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.8.3';
+const APP_VERSION = '0.9.0';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -31,6 +31,14 @@ function emptyFiche(nom='Sans nom'){
     draviks: 0, xp_courant: 0,
     weapons: [], armors: [], tools: [], waymates: [],
     apparence: '', histoire: '', liens: '', notes: '',
+    base: {
+      name: '', type: 'static',
+      reputation: '', specialty: '', founder: '', quirk: '', notes: '',
+      materials: { timber: 0, stone: 0, iron: 0, cloth: 0, rare: 0, gems: 0 },
+      treasury: 0,
+      rooms: []
+    },
+    clocks: [],
     solo_mode: false,
     _fiche_id: newId(),
     _rollLog: []
@@ -55,6 +63,17 @@ const LOA_STATUSES = [
   { nom: 'Stunned',      color: 'gold',   desc: 'Ses Crits n\'explosent pas à son prochain tour. Fin du prochain tour.' },
   { nom: 'Unseen',       color: 'gray',   desc: 'Ne peut être ciblé par une attaque. Ses attaques ne peuvent être contrées. Retiré dès qu\'il agit.' },
   { nom: 'Weakened',     color: 'red',    desc: 'Prochaine attaque : dé de base réduit d\'un cran (min d4). Fin du prochain tour.' }
+];
+
+const CLOCK_TYPES = [
+  { key:'voyage',     label:'Voyage',             size:6,  kind:'progress', hint:'Atteindre une destination (3–8 segments).' },
+  { key:'quete',      label:'Quête',              size:6,  kind:'progress', hint:'Faire avancer un objectif d\u2019aventure (4–8).' },
+  { key:'profondeur', label:'Profondeur du lieu', size:6,  kind:'progress', hint:'S\u2019enfoncer dans un donjon ou un site (4–8).' },
+  { key:'boss',       label:'Boss',               size:10, kind:'threat',   hint:'Phases et escalade d\u2019un boss (8–12).' },
+  { key:'danger',     label:'Danger',             size:8,  kind:'threat',   hint:'Une menace qui se rapproche (6–10).' },
+  { key:'ressource',  label:'Ressource',          size:6,  kind:'threat',   hint:'Épuisement d\u2019une réserve (6).' },
+  { key:'menace',     label:'Menace régionale',   size:8,  kind:'threat',   hint:'Tension montante d\u2019une région (4–12).' },
+  { key:'libre',      label:'Libre',              size:6,  kind:'progress', hint:'Un compteur personnalisé, comme tu veux.' }
 ];
 
 function classDieSize(niveau){
@@ -91,6 +110,7 @@ let currentInvEquip = 'weapons';
 let selectedAttrs = [];
 let currentTab = 'check';
 let editingItem = null;
+let editingClock = null;
 
 function loadState(){
   try {
@@ -173,6 +193,7 @@ function switchPage(page){
   );
   /* Si on entre dans Capacités ou Équipement, on rafraîchit l'inventaire */
   if(page === 'capacites' || page === 'equipement') renderInventoryPages();
+  if(page === 'clocks') renderClocks();
 }
 
 /* -------------------- Rendu (DOM) -------------------------------------- */
@@ -208,6 +229,7 @@ function render(){
   renderSidebar();
   renderClassStrip();
   renderRP();
+  renderClocks();
   if(combatModeActive) renderCombatMode();
 
   $('ficheBtnLabel').textContent = f.nom || '—';
@@ -533,6 +555,157 @@ function removeStatus(id){
   const f = active();
   f.statuses = (f.statuses || []).filter(s => s.id !== id);
   saveState(); render();
+}
+
+/* -------------------- Horloges (Clocks) -------------------------------- */
+function clockTypeRef(key){ return CLOCK_TYPES.find(t => t.key === key) || CLOCK_TYPES[CLOCK_TYPES.length - 1]; }
+
+function renderClocks(){
+  const wrap = $('clocksList'); if(!wrap) return;
+  const f = active(); if(!f) return;
+  f.clocks = f.clocks || [];
+  if($('clkCount')) $('clkCount').textContent = f.clocks.length ? f.clocks.length + ' active(s)' : '';
+  if(f.clocks.length === 0){
+    wrap.innerHTML = '<div class="clk-empty">Aucune horloge pour l\u2019instant. Crée-en une pour suivre un voyage, une menace, une qu\u00eate\u2026</div>';
+    return;
+  }
+  wrap.innerHTML = f.clocks.map(c => {
+    const ref = clockTypeRef(c.type);
+    const done = c.filled >= c.size;
+    const kindLabel = c.kind === 'threat' ? 'Menace' : 'Progrès';
+    return '<div class="clock-card' + (done ? ' done' : '') + '">'
+      + '<div class="clock-dial">' + clockSvg(c) + '</div>'
+      + '<div class="clock-body">'
+        + '<div class="clock-name">' + escapeHtml(c.name || ref.label) + (done ? ' <span class="clock-done">✓ COMPLÈTE</span>' : '') + '</div>'
+        + '<div class="clock-tags"><span class="clock-type">' + escapeHtml(ref.label) + '</span>'
+          + '<span class="clock-kind ' + (c.kind === 'threat' ? 'threat' : 'progress') + '">' + kindLabel + '</span></div>'
+        + '<div class="clock-ctrls">'
+          + '<button onclick="tickClock(\'' + c.id + '\',-1)">−1</button>'
+          + '<button onclick="tickClock(\'' + c.id + '\',1)">+1</button>'
+          + '<button onclick="tickClock(\'' + c.id + '\',2)">+2</button>'
+          + '<button class="ghost" title="Éditer" onclick="openClockModal(\'' + c.id + '\')">✎</button>'
+          + '<button class="ghost" title="Supprimer" onclick="deleteClock(\'' + c.id + '\')">🗑</button>'
+        + '</div>'
+      + '</div>'
+    + '</div>';
+  }).join('');
+}
+
+function clockSvg(c){
+  const N = c.size, R = 44, cx = 50, cy = 50;
+  const fill = c.kind === 'threat' ? '#e0533a' : '#5bd07a';
+  let segs = '';
+  for(let i = 0; i < N; i++){
+    const a0 = (i / N) * 2 * Math.PI - Math.PI / 2;
+    const a1 = ((i + 1) / N) * 2 * Math.PI - Math.PI / 2;
+    const x0 = (cx + R * Math.cos(a0)).toFixed(2), y0 = (cy + R * Math.sin(a0)).toFixed(2);
+    const x1 = (cx + R * Math.cos(a1)).toFixed(2), y1 = (cy + R * Math.sin(a1)).toFixed(2);
+    const large = (a1 - a0) > Math.PI ? 1 : 0;
+    const isFill = i < c.filled;
+    segs += '<path class="clk-seg" onclick="clockSegClick(\'' + c.id + '\',' + i + ')" '
+      + 'd="M' + cx + ',' + cy + ' L' + x0 + ',' + y0 + ' A' + R + ',' + R + ' 0 ' + large + ' 1 ' + x1 + ',' + y1 + ' Z" '
+      + 'fill="' + (isFill ? fill : 'rgba(8,18,60,.55)') + '" stroke="#0a153f" stroke-width="2"></path>';
+  }
+  return '<svg viewBox="0 0 100 100" class="clk-svg">' + segs
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="none" stroke="#dfe7ff" stroke-width="2" opacity=".45"></circle>'
+    + '<text x="' + cx + '" y="' + (cy + 5) + '" text-anchor="middle" class="clk-center">' + c.filled + '/' + c.size + '</text></svg>';
+}
+
+function setClockFilled(id, value){
+  const f = active(); if(!f) return;
+  const c = (f.clocks || []).find(x => x.id === id); if(!c) return;
+  const before = c.filled;
+  c.filled = Math.max(0, Math.min(c.size, value));
+  if(c.filled === before) return;
+  saveState(); renderClocks();
+  initAudio();
+  if(c.filled >= c.size && before < c.size){
+    sfxConfirm();
+    toast('Horloge « ' + (c.name || '') + ' » complète !');
+  } else {
+    sfxConfirm();
+  }
+}
+function tickClock(id, delta){
+  const f = active(); if(!f) return;
+  const c = (f.clocks || []).find(x => x.id === id); if(!c) return;
+  setClockFilled(id, c.filled + delta);
+}
+function clockSegClick(id, i){
+  const f = active(); if(!f) return;
+  const c = (f.clocks || []).find(x => x.id === id); if(!c) return;
+  /* Toucher le segment courant le plus haut le retire ; sinon remplit jusqu'à lui */
+  setClockFilled(id, (c.filled === i + 1) ? i : i + 1);
+}
+
+function openClockModal(id){
+  const f = active(); if(!f) return;
+  const sel = $('clkType');
+  sel.innerHTML = CLOCK_TYPES.map(t => '<option value="' + t.key + '">' + t.label + '</option>').join('');
+  if(id){
+    const c = (f.clocks || []).find(x => x.id === id);
+    if(!c) return;
+    editingClock = id;
+    $('clockModalTitle').textContent = 'MODIFIER L\u2019HORLOGE';
+    $('clkName').value = c.name || '';
+    sel.value = c.type || 'libre';
+    $('clkSize').value = String(c.size);
+    $('clkKind').value = c.kind === 'threat' ? 'threat' : 'progress';
+    $('clkTypeHint').textContent = clockTypeRef(c.type).hint;
+    $('clkDeleteBtn').style.display = '';
+  } else {
+    editingClock = null;
+    $('clockModalTitle').textContent = 'NOUVELLE HORLOGE';
+    $('clkName').value = '';
+    sel.value = 'voyage';
+    const ref = clockTypeRef('voyage');
+    $('clkSize').value = String(ref.size);
+    $('clkKind').value = ref.kind;
+    $('clkTypeHint').textContent = ref.hint;
+    $('clkDeleteBtn').style.display = 'none';
+  }
+  openModal('clockModal');
+}
+function clockTypeChanged(){
+  const ref = clockTypeRef($('clkType').value);
+  $('clkSize').value = String(ref.size);
+  $('clkKind').value = ref.kind;
+  $('clkTypeHint').textContent = ref.hint;
+}
+function saveClock(){
+  const f = active(); if(!f) return;
+  f.clocks = f.clocks || [];
+  const name = $('clkName').value.trim();
+  const type = $('clkType').value;
+  const size = parseInt($('clkSize').value, 10) || 6;
+  const kind = $('clkKind').value === 'threat' ? 'threat' : 'progress';
+  if(editingClock){
+    const c = f.clocks.find(x => x.id === editingClock);
+    if(c){
+      c.name = name; c.type = type; c.size = size; c.kind = kind;
+      c.filled = Math.min(c.filled, size);
+    }
+  } else {
+    f.clocks.push({ id: newId(), name: name || clockTypeRef(type).label, type, size, kind, filled: 0 });
+  }
+  editingClock = null;
+  saveState(); renderClocks(); closeModal('clockModal');
+  toast('Horloge enregistrée');
+}
+function deleteClock(id){
+  const f = active(); if(!f) return;
+  const c = (f.clocks || []).find(x => x.id === id);
+  if(!c) return;
+  if(!confirm('Supprimer l\u2019horloge « ' + (c.name || '') + ' » ?')) return;
+  f.clocks = f.clocks.filter(x => x.id !== id);
+  saveState(); renderClocks();
+  toast('Horloge supprimée');
+}
+function deleteClockFromModal(){
+  if(!editingClock){ closeModal('clockModal'); return; }
+  const id = editingClock;
+  closeModal('clockModal');
+  deleteClock(id);
 }
 
 /* -------------------- Audio (bips synthétisés) -------------------------- */

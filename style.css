@@ -1493,6 +1493,96 @@ body.combat-on .right-sidebar { top: calc(var(--combat-hud-h, 0px) + 16px); }
 .action-grid button.danger { background: linear-gradient(180deg, #c4382a, #7a1e15); }
 
 /* ==========================================================================
+   Horloges (Clocks)
+   ========================================================================== */
+.subpage-back {
+  font-family: var(--pixel);
+  font-size: 8px;
+  color: var(--ink-dim);
+  background: rgba(255,255,255,.06);
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.1);
+  letter-spacing: 1px;
+}
+.subpage-back:hover { background: rgba(255,255,255,.14); color: #fff; }
+
+.clk-count { font-family: var(--body); font-size: 10px; color: var(--ink-dim); font-weight: 600; margin-left: 8px; letter-spacing: 0; }
+.clk-intro { font-size: 12px; line-height: 1.5; color: var(--ink-dim); margin-bottom: 14px; }
+.clk-intro b { color: var(--accent); }
+.clk-empty { font-size: 12px; color: var(--ink-dimmer); text-align: center; padding: 20px 10px; line-height: 1.5; }
+
+.clock-card {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.04);
+  box-shadow: inset 0 0 0 2px var(--frame-dark);
+}
+.clock-card.done { box-shadow: inset 0 0 0 2px var(--accent); background: rgba(248,216,120,.08); }
+.clock-dial { flex: 0 0 92px; }
+.clk-svg { width: 92px; height: 92px; display: block; }
+.clk-seg { cursor: pointer; transition: opacity .1s; }
+.clk-seg:hover { opacity: .82; }
+.clk-center { font-family: var(--body); font-weight: 700; font-size: 15px; fill: #fff; }
+
+.clock-body { flex: 1; min-width: 0; }
+.clock-name { font-weight: 700; font-size: 15px; color: #fff; margin-bottom: 5px; }
+.clock-done { font-family: var(--pixel); font-size: 7px; color: var(--accent); margin-left: 4px; vertical-align: middle; }
+.clock-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 9px; }
+.clock-type { font-size: 11px; color: var(--ink-dim); background: rgba(255,255,255,.07); padding: 2px 8px; border-radius: 10px; }
+.clock-kind { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.clock-kind.progress { background: rgba(91,208,122,.22); color: #b6f0c2; }
+.clock-kind.threat   { background: rgba(224,83,58,.22);  color: #ffb9aa; }
+
+.clock-ctrls { display: flex; gap: 6px; flex-wrap: wrap; }
+.clock-ctrls button {
+  font-family: var(--body);
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  padding: 7px 12px;
+  background: linear-gradient(180deg, #3a63d6, #1d3da0);
+  box-shadow: 0 0 0 2px var(--frame-dark), 0 2px 0 var(--frame-dark);
+  transition: transform .06s;
+}
+.clock-ctrls button:active { transform: translateY(2px); box-shadow: 0 0 0 2px var(--frame-dark); }
+.clock-ctrls button.ghost {
+  background: rgba(255,255,255,.08);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.12);
+  padding: 7px 10px;
+}
+.clock-ctrls button.ghost:hover { background: rgba(255,255,255,.16); }
+
+.clk-add-btn {
+  width: 100%;
+  margin-top: 6px;
+  padding: 14px;
+  font-family: var(--pixel);
+  font-size: 9px;
+  color: #fff;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  letter-spacing: 1px;
+  background: linear-gradient(180deg, #3a63d6, #1d3da0);
+  box-shadow: 0 0 0 2px var(--frame-dark), 0 0 0 3px rgba(223,231,255,.5), 0 3px 0 var(--frame-dark);
+  transition: transform .06s;
+}
+.clk-add-btn:active { transform: translateY(2px); }
+
+.clk-type-hint { font-size: 11px; color: var(--ink-dim); margin: -2px 0 4px; line-height: 1.4; }
+
+/* ==========================================================================
    Overlays / Modals (inchangés)
    ========================================================================== */
 .overlay {
