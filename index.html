@@ -128,6 +128,15 @@
         </div>
 
         <div class="panel">
+          <div class="section-h">ACTIONS DE JEU</div>
+          <div class="action-grid">
+            <button onclick="shortRest()">🌙 REPOS COURT</button>
+            <button onclick="downtime()">☀ DOWNTIME</button>
+            <button onclick="levelUp()" style="grid-column:1/-1">⬆ NIVEAU SUPÉRIEUR</button>
+          </div>
+        </div>
+
+        <div class="panel">
           <div class="section-h">STATUTS</div>
           <div class="statuses" id="statuses"></div>
         </div>
@@ -137,6 +146,23 @@
           <div class="log">
             <div class="roll" id="rolltray"><span class="q">—</span></div>
             <div class="res" id="rollres">—</div>
+          </div>
+        </div>
+
+        <div class="panel collapse" id="rpPanel">
+          <button class="collapse-h" onclick="toggleCollapse('rpPanel')">
+            <span class="collapse-caret">▾</span>
+            <span class="section-h">HISTOIRE &amp; NOTES</span>
+          </button>
+          <div class="collapse-body">
+            <label class="rp-label">Apparence</label>
+            <textarea class="rp-area" id="rpApparence" placeholder="Comment ressemble ton personnage…"></textarea>
+            <label class="rp-label">Histoire</label>
+            <textarea class="rp-area" id="rpHistoire" placeholder="D'où vient-il, ce qu'il a vécu…"></textarea>
+            <label class="rp-label">Liens</label>
+            <textarea class="rp-area" id="rpLiens" placeholder="Famille, amitiés, ennemis, factions…"></textarea>
+            <label class="rp-label">Notes</label>
+            <textarea class="rp-area" id="rpNotes" placeholder="Idées, objectifs en cours, infos diverses…"></textarea>
           </div>
         </div>
       </div>
@@ -160,14 +186,6 @@
       <!-- ====== PAGE PLUS ====== -->
       <div class="page" id="page-plus">
         <div class="panel">
-          <div class="section-h">ACTIONS DE JEU</div>
-          <div class="action-grid">
-            <button onclick="shortRest()">🌙 REPOS COURT</button>
-            <button onclick="downtime()">☀ DOWNTIME</button>
-            <button onclick="levelUp()">⬆ NIVEAU +</button>
-          </div>
-        </div>
-        <div class="panel">
           <div class="section-h">FICHE</div>
           <div class="action-grid">
             <button onclick="openEdit()">✎ ÉDITER</button>
@@ -188,17 +206,6 @@
             <button onclick="switchPage('base')">🏰 BASE DE GUILDE</button>
             <button onclick="switchPage('aide')">📖 AIDE / RÈGLES</button>
           </div>
-        </div>
-        <div class="panel">
-          <div class="section-h">ROLEPLAY</div>
-          <label class="rp-label">Apparence</label>
-          <textarea class="rp-area" id="rpApparence" placeholder="Comment ressemble ton personnage…"></textarea>
-          <label class="rp-label">Histoire</label>
-          <textarea class="rp-area" id="rpHistoire" placeholder="D'où vient-il, ce qu'il a vécu…"></textarea>
-          <label class="rp-label">Liens</label>
-          <textarea class="rp-area" id="rpLiens" placeholder="Famille, amitiés, ennemis, factions…"></textarea>
-          <label class="rp-label">Notes</label>
-          <textarea class="rp-area" id="rpNotes" placeholder="Idées, objectifs en cours, infos diverses…"></textarea>
         </div>
         <input type="file" id="fileInput" accept="application/json" hidden>
       </div>

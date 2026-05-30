@@ -3,7 +3,7 @@
    Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.9.0';
+const APP_VERSION = '0.9.1';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -230,6 +230,7 @@ function render(){
   renderClassStrip();
   renderRP();
   renderClocks();
+  applyCollapsed();
   if(combatModeActive) renderCombatMode();
 
   $('ficheBtnLabel').textContent = f.nom || '—';
@@ -2139,6 +2140,19 @@ function wireRP(){
       }, 400);
     });
   });
+}
+
+/* -------------------- Panneaux repliables ------------------------------ */
+function toggleCollapse(id){
+  const el = $(id); if(!el) return;
+  el.classList.toggle('collapsed');
+  opts.collapsed = opts.collapsed || {};
+  opts.collapsed[id] = el.classList.contains('collapsed');
+  saveOpts();
+}
+function applyCollapsed(){
+  const c = opts.collapsed || {};
+  Object.keys(c).forEach(id => { const el = $(id); if(el) el.classList.toggle('collapsed', !!c[id]); });
 }
 
 /* -------------------- Mode Combat (HUD flottant) ----------------------- */

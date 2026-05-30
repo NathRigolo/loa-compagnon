@@ -1582,6 +1582,25 @@ body.combat-on .right-sidebar { top: calc(var(--combat-hud-h, 0px) + 16px); }
 
 .clk-type-hint { font-size: 11px; color: var(--ink-dim); margin: -2px 0 4px; line-height: 1.4; }
 
+/* Panneaux repliables */
+.collapse-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+.collapse-h .section-h { margin: 0; }
+.collapse-h:hover .section-h { filter: brightness(1.15); }
+.collapse-caret { color: var(--accent); font-size: 11px; transition: transform .2s; line-height: 1; }
+.panel.collapse.collapsed .collapse-caret { transform: rotate(-90deg); }
+.collapse-body { margin-top: 10px; }
+.panel.collapse.collapsed .collapse-body { display: none; }
+
 /* ==========================================================================
    Overlays / Modals (inchangés)
    ========================================================================== */
