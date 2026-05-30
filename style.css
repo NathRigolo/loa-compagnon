@@ -1623,6 +1623,70 @@ body.combat-on .right-sidebar { top: calc(var(--combat-hud-h, 0px) + 16px); }
 }
 
 /* ==========================================================================
+   Wiki / Aide — style Chrono Trigger (conté par Zaldini)
+   ========================================================================== */
+.wiki-intro { font-size: 13px; line-height: 1.6; color: var(--ink-dim); }
+.wiki-intro b { color: var(--accent); }
+
+.wiki-sec {
+  margin-bottom: 10px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #1c3c93 0%, #0c1f59 100%);
+  box-shadow: 0 0 0 2px var(--frame-dark), inset 0 0 0 2px rgba(143,162,255,.45);
+  overflow: hidden;
+}
+.wiki-head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: none; cursor: pointer; padding: 13px 14px; text-align: left;
+}
+.wiki-head:hover { background: rgba(255,255,255,.05); }
+.wiki-head .tri {
+  width: 0; height: 0; flex: 0 0 auto;
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+  border-left: 8px solid var(--accent); transition: transform .2s;
+}
+.wiki-sec.open .wiki-head .tri { transform: rotate(90deg); }
+.wiki-title {
+  flex: 1; font-family: var(--pixel); font-size: 9px; color: var(--accent);
+  text-shadow: 1px 1px 0 var(--accent-shadow); letter-spacing: .5px; line-height: 1.5;
+}
+.wiki-body { display: none; padding: 0 14px 14px; }
+.wiki-sec.open .wiki-body { display: block; }
+
+.zaldini-box {
+  background: #4f1310; border-radius: 6px;
+  box-shadow: inset 4px 0 0 #ff5a4d, inset 0 0 0 2px #2a0e0a;
+  padding: 11px 13px 11px 15px; margin-bottom: 13px;
+}
+.zaldini-label {
+  font-family: var(--pixel); font-size: 8px; color: #f8d878;
+  text-shadow: 1px 1px 0 #2a0e0a; letter-spacing: 1px; margin-bottom: 10px;
+}
+.zaldini-voice { font-size: 14px; line-height: 1.6; color: #ffe2d6; font-style: italic; }
+.zaldini-voice .em { font-style: normal; color: #ffd451; font-weight: 700; }
+.zaldini-voice .cold { font-style: normal; font-size: 12px; color: #ffb38f; }
+
+.wiki-clair {
+  font-family: var(--pixel); font-size: 8px; color: #ffd9a0;
+  text-shadow: 1px 1px 0 var(--accent-shadow); letter-spacing: 1px; margin-bottom: 9px;
+}
+.wiki-rule { font-size: 14px; line-height: 1.65; color: #eaf0ff; }
+.wiki-rule b { color: var(--accent); }
+.wiki-rule p { margin: 0 0 9px; }
+.wiki-rule p:last-child { margin-bottom: 0; }
+
+.wiki-tab { border-radius: 6px; overflow: hidden; box-shadow: inset 0 0 0 2px #0a153f; margin: 11px 0; }
+.wiki-tab .r { display: flex; align-items: stretch; }
+.wiki-tab .r + .r { border-top: 1px solid #34419e; }
+.wiki-tab .b {
+  flex: 0 0 66px; display: flex; align-items: center; justify-content: center;
+  background: #16205f; color: var(--accent); font-family: var(--body); font-weight: 700;
+  font-size: 12px; text-align: center; padding: 8px 6px; line-height: 1.2;
+}
+.wiki-tab .t { flex: 1; padding: 9px 12px; font-size: 13.5px; line-height: 1.45; background: rgba(255,255,255,.03); color: #eaf0ff; }
+.wiki-tab .t b { color: var(--accent); }
+
+/* ==========================================================================
    Overlays / Modals (inchangés)
    ========================================================================== */
 .overlay {

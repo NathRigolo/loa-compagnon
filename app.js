@@ -3,7 +3,7 @@
    Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.9.4';
+const APP_VERSION = '0.10.0';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -194,6 +194,7 @@ function switchPage(page){
   /* Si on entre dans Capacités ou Équipement, on rafraîchit l'inventaire */
   if(page === 'capacites' || page === 'equipement') renderInventoryPages();
   if(page === 'clocks') renderClocks();
+  if(page === 'aide' && $('aideList') && !$('aideList').children.length) renderAide();
 }
 
 /* -------------------- Rendu (DOM) -------------------------------------- */
@@ -2155,6 +2156,73 @@ function applyCollapsed(){
   Object.keys(c).forEach(id => { const el = $(id); if(el) el.classList.toggle('collapsed', !!c[id]); });
 }
 
+/* -------------------- Wiki / Aide (conté par Zaldini) ------------------ */
+const WIKI_SECTIONS = [
+  { id:'checks', title:'LES CHECKS',
+    voice:`« Oooh un Check, mon préféré&nbsp;! Tu prends deux Attributs, tu les colles, tu lances autant de d6 — chaque <span class="em">5</span> ou <span class="em">6</span> te sourit&nbsp;! »<span class="cold"> — et là, tout bas — </span>« Les autres dés&nbsp;? On les oublie. Comme tout ce qui cesse d'être utile. »<span class="cold"> puis, rayonnant — </span>« Bref&nbsp;! Zéro c'est nul, un à trois c'est mou, quatre et plus t'es un p'tit génie&nbsp;! »`,
+    rule:`<p>Choisis 1 ou 2 Attributs qui collent à l'action, additionne-les, et lance ce nombre de d6. Chaque dé sur <b>5 ou 6</b> compte pour un succès.</p>
+    <div class="wiki-tab">
+      <div class="r"><div class="b">0</div><div class="t"><b>Échec</b> — tu rates, et tu en subis les conséquences.</div></div>
+      <div class="r"><div class="b">1–3</div><div class="t"><b>Mitigé</b> — tu réussis, mais à un prix, un compromis ou un revers.</div></div>
+      <div class="r"><div class="b">4+</div><div class="t"><b>Complet</b> — tu réussis proprement, sans la moindre conséquence.</div></div>
+    </div>
+    <p>Avec un seul Attribut, lance le double de dés (Body 3 → 6d6). Quand une valeur est divisée, arrondis en faveur des joueurs. En Check opposé, les deux camps lancent&nbsp;: le plus de succès l'emporte.</p>`
+  },
+  { id:'attributs', title:'LES ATTRIBUTS',
+    voice:`« Six p'tites cases pour dire qui tu es&nbsp;: Body pour cogner, Mind pour ruser dans ta tête, World pour survivre dehors… et tout le toutim&nbsp;! »<span class="cold"> plus bas — </span>« Choisis-en une comme Primary. C'est elle qui frappe fort. Les autres regardent. »<span class="cold"> tout sourire — </span>« Allez, répartis et deviens quelqu'un&nbsp;! »`,
+    rule:`<p>Ton héros a six Attributs&nbsp;:</p>
+    <p><b>Body</b> — force, mouvement, endurance.<br><b>Gods</b> — foi, conviction, droiture.<br><b>Mind</b> — clarté, savoir, planification.<br><b>Shadow</b> — agilité, discrétion, ruse.<br><b>Soul</b> — volonté, magie, intuition.<br><b>World</b> — survie, nature, instinct.</p>
+    <p>L'un d'eux est ton <b>Primary</b>&nbsp;: il sert à tes dégâts et au nombre de dés de ton Dé de Classe. Plus un Attribut est haut, plus tu lances de dés sur les Checks qui l'utilisent.</p>`
+  },
+  { id:'combat', title:'LE COMBAT',
+    voice:`« Baston&nbsp;! On déroule en quatre temps, et le quatrième, je l'adore. »<span class="cold"> glaçant — </span>« Les morts ne se relèvent pas. Ni ne se plaignent. »<span class="cold"> ravi — </span>« Mais commençons par le commencement, hein&nbsp;! »`,
+    rule:`<div class="wiki-tab">
+      <div class="r"><div class="b">1</div><div class="t"><b>Avantage de type</b> — triangle Blade › Breaker › Lance › Blade. Si ton arme de mêlée bat le type adverse, ta zone de critique gagne +1. Le Bow est hors triangle.</div></div>
+      <div class="r"><div class="b">2</div><div class="t"><b>Dé de Base</b> — lance le dé de base de l'arme. Un <b>1</b> = coup manqué&nbsp;; le <b>max</b> explose (crit&nbsp;: relance et cumule). Les sorts ne ratent ni ne critent.</div></div>
+      <div class="r"><div class="b">3</div><div class="t"><b>Défense</b> — retire la DEF adverse des dégâts. À <b>0 DEF</b>, la cible est Défense Brisée&nbsp;: les dégâts hors Statuts sont <b>doublés</b>.</div></div>
+      <div class="r"><div class="b">4</div><div class="t"><b>Counter</b> — en mêlée, la cible riposte&nbsp;: Counter de son arme + la moitié de son Primary (arrondi au sup.), à plat, sans crit ni DEF. Distance et sorts ne ripostent pas.</div></div>
+    </div>`
+  },
+  { id:'affinites', title:'LES AFFINITÉS',
+    voice:`« Tout le monde a un point faible. Trouve-le, appuie dessus, recommence&nbsp;! »<span class="cold"> tout bas — </span>« Frappe une faiblesse et les dégâts doublent. C'est… très satisfaisant. »<span class="cold"> joyeux — </span>« Et face à une résistance, on réfléchit avant de taper, gros malin&nbsp;! »`,
+    rule:`<p>On applique l'Affinité <b>après</b> la DEF, selon le type de dégâts (Cold, Fire, Light, Physical, Psychic, Void, Thunder, Wild).</p>
+    <div class="wiki-tab">
+      <div class="r"><div class="b">Faible</div><div class="t"><b>×2</b> — les dégâts de ce type sont doublés.</div></div>
+      <div class="r"><div class="b">Résiste</div><div class="t"><b>÷2</b> — les dégâts sont réduits de moitié (arrondi au plus bas).</div></div>
+      <div class="r"><div class="b">Immune</div><div class="t"><b>0</b> — aucun dégât de ce type.</div></div>
+    </div>`
+  },
+  { id:'hp', title:'HP, BLESSURES & AGONIE',
+    voice:`« Tes p'tits points de vie&nbsp;! Tant qu'il y en a, tu cours, tu sautes, tu vis&nbsp;! »<span class="cold"> murmure — </span>« À zéro, tu tombes. Une Blessure. Encore cinq, et je récupère ton matériel. »<span class="cold"> encourageant — </span>« Mais un allié peut te relever&nbsp;: debout&nbsp;! »`,
+    rule:`<p>À <b>0 HP</b>, tu prends <b>1 Blessure</b> et tu passes à l'<b>agonie</b>&nbsp;: une seule action par tour. Un soin te remet à <b>1 HP exactement</b> et te sort de l'agonie.</p>
+    <p><b>6 Blessures = mort.</b> Les Blessures se soignent en se reposant (voir Repos &amp; Downtime).</p>`
+  },
+  { id:'repos', title:'REPOS & DOWNTIME',
+    voice:`« Une p'tite pause&nbsp;? Respire, recouds-toi, et hop, en forme&nbsp;! »<span class="cold"> froid — </span>« Le temps guérit tout. Sauf ce qui est déjà froid. »<span class="cold"> pétillant — </span>« Et après une bonne nuit, tout repart à neuf&nbsp;! »`,
+    rule:`<p><b>Repos court</b> — au moins 10 minutes, 3 maximum par Downtime. Tu récupères du SP (un jet de Dé de Classe), tu retires <b>1 Blessure</b>, et tu réarmes ton soin de Dé de Classe ainsi que ton Limit Break.</p>
+    <p><b>Downtime</b> — une période de 24 h. Récupération <b>complète</b>&nbsp;: tous les HP, le SP, toutes les Blessures et les ressources dépensées.</p>
+    <p><b>Soin du Dé de Classe</b> — une fois entre deux repos courts, hors combat, lance ton Dé de Classe pour récupérer autant de HP.</p>`
+  }
+];
+
+function renderAide(){
+  const wrap = $('aideList'); if(!wrap) return;
+  wrap.innerHTML = WIKI_SECTIONS.map(function(s){
+    return '<div class="wiki-sec" id="wiki-' + s.id + '">'
+      + '<button class="wiki-head" onclick="toggleWiki(this)">'
+        + '<span class="tri"></span><span class="wiki-title">' + s.title + '</span>'
+      + '</button>'
+      + '<div class="wiki-body">'
+        + '<div class="zaldini-box"><div class="zaldini-label">✦ ZALDINI DIT</div>'
+        + '<div class="zaldini-voice">' + s.voice + '</div></div>'
+        + '<div class="wiki-clair">EN CLAIR</div>'
+        + '<div class="wiki-rule">' + s.rule + '</div>'
+      + '</div>'
+    + '</div>';
+  }).join('');
+}
+function toggleWiki(btn){ btn.parentElement.classList.toggle('open'); }
+
 /* -------------------- Mode Combat (HUD flottant) ----------------------- */
 let combatCollapsed = false;
 
@@ -2332,6 +2400,7 @@ function init(){
   applyOpts();
   wire();
   wireRP();
+  renderAide();
   window.addEventListener('resize', () => { if(combatModeActive) syncCombatPadding(); });
   switchPage('fiche');
   render();
