@@ -3,7 +3,7 @@
    Layout 3 colonnes desktop, bottom nav mobile
    ========================================================================== */
 
-const APP_VERSION = '0.11.0';
+const APP_VERSION = '0.13.0';
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'loa.fiches';
 const ACTIVE_KEY  = 'loa.active';
@@ -32,11 +32,11 @@ function emptyFiche(nom='Sans nom'){
     weapons: [], armors: [], tools: [], waymates: [],
     apparence: '', histoire: '', liens: '', notes: '',
     base: {
-      name: '', type: 'static',
+      name: '', kind: 'guilde', type: 'static',
       reputation: '', specialty: '', founder: '', quirk: '', notes: '',
       materials: { timber: 0, stone: 0, iron: 0, cloth: 0, rare: 0, gems: 0 },
       treasury: 0,
-      rooms: []
+      rooms: [], crops: []
     },
     clocks: [],
     solo_mode: false,
@@ -194,6 +194,7 @@ function switchPage(page){
   /* Si on entre dans Capacités ou Équipement, on rafraîchit l'inventaire */
   if(page === 'capacites' || page === 'equipement') renderInventoryPages();
   if(page === 'clocks') renderClocks();
+  if(page === 'base'){ renderBase(); fillBaseDetails(); }
   if(page === 'aide' && $('aideList') && !$('aideList').children.length) renderAide();
 }
 
@@ -709,6 +710,270 @@ function deleteClockFromModal(){
   closeModal('clockModal');
   deleteClock(id);
 }
+
+/* ==================== Base de guilde ==================== */
+const BASE_MATERIALS = [
+  { key: 'timber', label: 'Bois' },
+  { key: 'stone',  label: 'Pierre' },
+  { key: 'iron',   label: 'Fer' },
+  { key: 'cloth',  label: 'Tissu' },
+  { key: 'rare',   label: 'Composants rares' },
+  { key: 'gems',   label: 'Gemmes' }
+];
+const BASE_KINDS = [
+  { key: 'guilde', emoji: '🏰', label: 'GUILDE' },
+  { key: 'ferme',  emoji: '🌾', label: 'FERME' },
+  { key: 'mobile', emoji: '⛺', label: 'MOBILE' }
+];
+
+function ensureBase(f){
+  if(!f.base) f.base = {};
+  const b = f.base;
+  if(!b.kind) b.kind = 'guilde';
+  if(!b.materials) b.materials = { timber:0, stone:0, iron:0, cloth:0, rare:0, gems:0 };
+  BASE_MATERIALS.forEach(m => { if(typeof b.materials[m.key] !== 'number') b.materials[m.key] = 0; });
+  if(typeof b.treasury !== 'number') b.treasury = 0;
+  if(!Array.isArray(b.rooms)) b.rooms = [];
+  if(!Array.isArray(b.crops)) b.crops = [];
+  return b;
+}
+
+function renderBase(){
+  const f = active();
+  if(!f || !$('baseKind')) return;
+  const b = ensureBase(f);
+
+  /* Type de base */
+  $('baseKindLabel').textContent = (BASE_KINDS.find(k => k.key === b.kind) || BASE_KINDS[0]).label.toLowerCase();
+  $('baseKind').innerHTML = '';
+  BASE_KINDS.forEach(k => {
+    const btn = document.createElement('button');
+    btn.className = 'bk-chip' + (b.kind === k.key ? ' active' : '');
+    btn.innerHTML = '<span class="bk-emoji">' + k.emoji + '</span>' + k.label;
+    btn.onclick = () => setBaseKind(k.key);
+    $('baseKind').appendChild(btn);
+  });
+
+  /* Trésor */
+  $('baseTreasury').textContent = b.treasury;
+
+  /* Matériaux */
+  $('baseMats').innerHTML = '';
+  BASE_MATERIALS.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'base-mat';
+    row.innerHTML =
+      '<button class="bm-btn">−</button>'
+      + '<span class="bm-name">' + m.label + '</span>'
+      + '<span class="bm-val">' + b.materials[m.key] + '</span>'
+      + '<button class="bm-btn">+</button>';
+    const btns = row.querySelectorAll('.bm-btn');
+    btns[0].onclick = () => adjBaseMaterial(m.key, -1);
+    btns[1].onclick = () => adjBaseMaterial(m.key, 1);
+    $('baseMats').appendChild(row);
+  });
+
+  /* Salles */
+  $('baseRoomCount').textContent = b.rooms.length ? b.rooms.length + ' salle' + (b.rooms.length > 1 ? 's' : '') : '';
+  const rc = $('baseRooms');
+  rc.innerHTML = '';
+  if(!b.rooms.length){
+    rc.innerHTML = '<div class="clk-intro" style="margin:0 0 10px">Aucune salle. Ajoute la Forge, la Bibliothèque, les Quartiers…</div>';
+  }
+  b.rooms.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'base-card';
+    card.innerHTML =
+      '<span class="bc-edit">✎</span>'
+      + '<div class="bc-name">' + escapeHtml(r.name || 'Salle') + '</div>'
+      + (r.note ? '<div class="bc-note">' + escapeHtml(r.note) + '</div>' : '');
+    card.onclick = () => openRoomModal(r.id);
+    rc.appendChild(card);
+  });
+
+  /* Cultures (ferme uniquement) */
+  $('baseCropsPanel').style.display = (b.kind === 'ferme') ? '' : 'none';
+  $('baseCropCount').textContent = b.crops.length ? b.crops.length + ' culture' + (b.crops.length > 1 ? 's' : '') : '';
+  const cc = $('baseCrops');
+  cc.innerHTML = '';
+  if(!b.crops.length){
+    cc.innerHTML = '<div class="clk-intro" style="margin:0 0 10px">Aucune culture en cours.</div>';
+  }
+  b.crops.forEach(c => {
+    const ready = (c.dt || 0) <= 0;
+    const row = document.createElement('div');
+    row.className = 'base-card base-crop';
+    row.innerHTML =
+      '<div class="bcr-main">'
+      + '<div class="bcr-name">' + escapeHtml(c.name || 'Culture') + '</div>'
+      + '<div class="bcr-status' + (ready ? ' ready' : '') + '">'
+      + (ready ? '✦ Prête à récolter' : 'Récolte dans ' + c.dt + ' Downtime' + (c.dt > 1 ? 's' : '')) + '</div>'
+      + '</div>'
+      + '<button class="bcr-tick' + (ready ? ' harvest' : '') + '">' + (ready ? 'RÉCOLTER' : '−1 DT') + '</button>';
+    row.querySelector('.bcr-main').onclick = () => openCropModal(c.id);
+    row.querySelector('.bcr-tick').onclick = (e) => {
+      e.stopPropagation();
+      if(ready) harvestCrop(c.id); else tickCrop(c.id);
+    };
+    cc.appendChild(row);
+  });
+}
+
+function fillBaseDetails(){
+  const f = active();
+  if(!f || !$('baseName')) return;
+  const b = ensureBase(f);
+  $('baseName').value       = b.name || '';
+  $('baseFounder').value    = b.founder || '';
+  $('baseSpecialty').value  = b.specialty || '';
+  $('baseReputation').value = b.reputation || '';
+  $('baseQuirk').value      = b.quirk || '';
+  $('baseNotes').value      = b.notes || '';
+}
+
+function setBaseKind(kind){
+  const f = active();
+  ensureBase(f).kind = kind;
+  saveState();
+  renderBase();
+}
+
+function adjBaseTreasury(d){
+  const f = active();
+  const b = ensureBase(f);
+  b.treasury = Math.max(0, (b.treasury || 0) + d);
+  saveState();
+  $('baseTreasury').textContent = b.treasury;
+}
+
+function adjBaseMaterial(key, d){
+  const f = active();
+  const b = ensureBase(f);
+  b.materials[key] = Math.max(0, (b.materials[key] || 0) + d);
+  saveState();
+  renderBase();
+}
+
+/* --- Salles --- */
+let editingRoom = null;
+function openRoomModal(id){
+  const f = active();
+  const b = ensureBase(f);
+  const r = id ? b.rooms.find(x => x.id === id) : null;
+  editingRoom = id || null;
+  $('roomModalTitle').textContent = r ? 'MODIFIER LA SALLE' : 'NOUVELLE SALLE';
+  $('roomName').value = r ? (r.name || '') : '';
+  $('roomNote').value = r ? (r.note || '') : '';
+  $('roomDeleteBtn').style.display = r ? '' : 'none';
+  openModal('roomModal');
+}
+function saveRoom(){
+  const f = active();
+  const b = ensureBase(f);
+  const name = $('roomName').value.trim() || 'Salle';
+  const note = $('roomNote').value.trim();
+  if(editingRoom){
+    const r = b.rooms.find(x => x.id === editingRoom);
+    if(r){ r.name = name; r.note = note; }
+  } else {
+    b.rooms.push({ id: newId(), name, note });
+  }
+  editingRoom = null;
+  saveState();
+  closeModal('roomModal');
+  renderBase();
+}
+function deleteRoom(id){
+  const f = active();
+  const b = ensureBase(f);
+  b.rooms = b.rooms.filter(x => x.id !== id);
+  saveState();
+  renderBase();
+}
+function deleteRoomFromModal(){
+  if(!editingRoom){ closeModal('roomModal'); return; }
+  const id = editingRoom; editingRoom = null;
+  closeModal('roomModal');
+  deleteRoom(id);
+}
+
+/* --- Cultures --- */
+let editingCrop = null;
+function openCropModal(id){
+  const f = active();
+  const b = ensureBase(f);
+  const c = id ? b.crops.find(x => x.id === id) : null;
+  editingCrop = id || null;
+  $('cropModalTitle').textContent = c ? 'MODIFIER LA CULTURE' : 'NOUVELLE CULTURE';
+  $('cropName').value = c ? (c.name || '') : '';
+  $('cropDt').value = c ? (c.dt != null ? c.dt : 2) : 2;
+  $('cropDeleteBtn').style.display = c ? '' : 'none';
+  openModal('cropModal');
+}
+function saveCrop(){
+  const f = active();
+  const b = ensureBase(f);
+  const name = $('cropName').value.trim() || 'Culture';
+  const dt = Math.max(0, parseInt($('cropDt').value) || 0);
+  if(editingCrop){
+    const c = b.crops.find(x => x.id === editingCrop);
+    if(c){ c.name = name; c.dt = dt; }
+  } else {
+    b.crops.push({ id: newId(), name, dt });
+  }
+  editingCrop = null;
+  saveState();
+  closeModal('cropModal');
+  renderBase();
+}
+function tickCrop(id){
+  const f = active();
+  const b = ensureBase(f);
+  const c = b.crops.find(x => x.id === id);
+  if(!c) return;
+  c.dt = Math.max(0, (c.dt || 0) - 1);
+  saveState();
+  renderBase();
+  if(c.dt === 0){ initAudio(); sfxConfirm(); toast('✦ ' + (c.name || 'Culture') + ' est prête à récolter'); }
+}
+function harvestCrop(id){
+  const f = active();
+  const b = ensureBase(f);
+  const c = b.crops.find(x => x.id === id);
+  if(!c) return;
+  if(!confirm('Récolter ' + (c.name || 'cette culture') + ' ? Elle sera retirée de la liste.')) return;
+  b.crops = b.crops.filter(x => x.id !== id);
+  saveState();
+  renderBase();
+  toast('🌾 ' + (c.name || 'Culture') + ' récoltée');
+}
+function deleteCropFromModal(){
+  if(!editingCrop){ closeModal('cropModal'); return; }
+  const id = editingCrop; editingCrop = null;
+  closeModal('cropModal');
+  const f = active();
+  const b = ensureBase(f);
+  b.crops = b.crops.filter(x => x.id !== id);
+  saveState();
+  renderBase();
+}
+
+function wireBase(){
+  const map = {
+    baseName: 'name', baseFounder: 'founder', baseSpecialty: 'specialty',
+    baseReputation: 'reputation', baseQuirk: 'quirk', baseNotes: 'notes'
+  };
+  Object.keys(map).forEach(id => {
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener('input', () => {
+      const f = active();
+      ensureBase(f)[map[id]] = el.value;
+      saveState();
+    });
+  });
+}
+
 
 /* -------------------- Audio (bips synthétisés) -------------------------- */
 let actx = null;
@@ -1433,9 +1698,15 @@ function renderItemCard(cat, item){
 function buildItemMeta(cat, item){
   if(cat === 'sorts'){
     const bits = [];
+    bits.push((item.mode === 'fieldcast') ? 'Fieldcast' : 'Battlecast');
     if(item.sp_cost) bits.push('SP ' + item.sp_cost);
     if(item.ap_cost) bits.push('AP ' + item.ap_cost);
     if(item.aspect) bits.push(item.aspect);
+    const cnt = item.base_die_count || 1, sz = item.base_die_size || 6;
+    let dmg = cnt + 'd' + sz;
+    if(item.flat_bonus) dmg += '+' + item.flat_bonus;
+    if(item.add_primary !== false) dmg += '+Prim';
+    bits.push(dmg + ' ' + (item.damage_type || 'Physical'));
     return bits.join(' · ');
   }
   if(cat === 'melodies'){
@@ -1498,9 +1769,15 @@ function openItemEditor(cat, item){
 
   if(cat === 'sorts'){
     $('itemSortFields').style.display = '';
+    $('itemSMode').value = src.mode || 'battlecast';
     $('itemAspect').value = src.aspect || '';
     $('itemSP').value = src.sp_cost || 0;
     $('itemAP').value = src.ap_cost || 0;
+    $('itemSDmgCount').value = src.base_die_count || 1;
+    $('itemSDmgSize').value = src.base_die_size || 6;
+    $('itemSFlat').value = src.flat_bonus || 0;
+    $('itemSAddPrimary').value = (src.add_primary === false) ? '0' : '1';
+    $('itemSDmgType').value = src.damage_type || 'Physical';
   } else if(cat === 'melodies'){
     $('itemMelodyFields').style.display = '';
     $('itemMP').value = src.mp_cost || 3;
@@ -1580,9 +1857,15 @@ function saveItem(){
   item.color = activeColor ? activeColor.getAttribute('data-c') : cfg.defaultColor;
 
   if(cat === 'sorts'){
+    item.mode = $('itemSMode').value;
     item.aspect = $('itemAspect').value.trim();
     item.sp_cost = parseInt($('itemSP').value) || 0;
     item.ap_cost = parseInt($('itemAP').value) || 0;
+    item.base_die_count = parseInt($('itemSDmgCount').value) || 1;
+    item.base_die_size  = parseInt($('itemSDmgSize').value) || 6;
+    item.flat_bonus     = parseInt($('itemSFlat').value) || 0;
+    item.add_primary    = $('itemSAddPrimary').value === '1';
+    item.damage_type    = $('itemSDmgType').value || 'Physical';
   } else if(cat === 'melodies'){
     item.mp_cost = parseInt($('itemMP').value) || 3;
   } else if(cat === 'weapons'){
@@ -1646,7 +1929,7 @@ function weaponTriangle(my, opp){
 }
 
 function openAttackModal(weapon){
-  attackCtx = { weapon, oppType: '' };
+  attackCtx = { weapon, oppType: '', isSpell: false };
   const f = active();
   const baseSize  = weapon.base_die_size || 8;
   const baseCount = weapon.base_die_count || 1;
@@ -1671,6 +1954,8 @@ function openAttackModal(weapon){
   });
   $('atkDef').value = 0;
   $('atkAffinity').value = 'normal';
+  $('atkTriangleBlock').style.display = '';
+  $('atkConfirmBtn').textContent = '⚔ ATTAQUER';
   updateTriangleDisplay();
 
   openModal('attackModal');
@@ -1709,6 +1994,7 @@ function updateTriangleDisplay(){
 }
 
 function executeAttack(){
+  if(attackCtx.isSpell){ executeSpell(); return; }
   const w = attackCtx.weapon;
   const f = active();
   const opp = {
@@ -1927,11 +2213,15 @@ function castSpell(sort){
   toast('✦ ' + (sort.titre || 'Sort') + ' lancé · −' + cost + ' SP');
   logRoll('Sort · ' + (sort.titre || ''), '−' + cost + ' SP');
   /* Si le sort a un Aspect, on ouvre le Check builder pré-rempli (Battlecast) */
-  if(sort.aspect){
-    const aspectAttr = aspectAttribute(sort.aspect);
-    if(aspectAttr){
-      setTimeout(() => openRoller(aspectAttr), 300);
-    }
+  initAudio(); sfxConfirm();
+  const mode = sort.mode || (sort.aspect ? 'fieldcast' : 'battlecast');
+  if(mode === 'fieldcast'){
+    const aspectAttr = sort.aspect ? aspectAttribute(sort.aspect) : null;
+    logRoll('Fieldcast · ' + (sort.titre || ''),
+      '−' + cost + ' SP · Check ' + f.primary + (aspectAttr ? ' + ' + aspectAttr : ''));
+    setTimeout(() => openRoller(aspectAttr || undefined), 220);
+  } else {
+    setTimeout(() => openSpellModal(sort), 100);
   }
 }
 function aspectAttribute(aspect){
@@ -1940,6 +2230,110 @@ function aspectAttribute(aspect){
     'Radiant': 'Soul', 'Untamed': 'World', 'Voidcraft': 'Shadow'
   };
   return map[aspect] || null;
+}
+
+function openSpellModal(sort){
+  attackCtx = { spell: sort, isSpell: true, oppType: '' };
+  const f = active();
+  const size    = sort.base_die_size || 6;
+  const count   = sort.base_die_count || 1;
+  const flat    = sort.flat_bonus || 0;
+  const addPrim = sort.add_primary !== false;
+  const primary = addPrim ? (f.attributs[f.primary] || 0) : 0;
+  const dmgType = sort.damage_type || 'Physical';
+
+  let formula = count + 'd' + size;
+  if(flat) formula += ' + ' + flat;
+  if(addPrim) formula += ' + <b>' + f.primary + '</b>(' + primary + ')';
+
+  $('atkTitle').textContent = 'BATTLECAST · ' + (sort.titre || 'SORT');
+  $('atkWeaponInfo').innerHTML = formula + ' · <b>' + escapeHtml(dmgType) + '</b>'
+    + '<br><span style="opacity:.7">Cible unique · Close · pas de jet d\'attaque</span>';
+  $('atkTriangleBlock').style.display = 'none';
+  $('atkConfirmBtn').textContent = '✦ LANCER';
+  $('atkDef').value = 0;
+  $('atkAffinity').value = 'normal';
+  openModal('attackModal');
+}
+
+function executeSpell(){
+  const sort = attackCtx.spell;
+  const f = active();
+  const opp = {
+    def:      parseInt($('atkDef').value) || 0,
+    affinity: $('atkAffinity').value
+  };
+  closeModal('attackModal');
+  const result = doSpellResolve(sort, opp, f);
+  showSpellResult(sort, opp, result);
+}
+
+function doSpellResolve(sort, opp, fiche){
+  const size    = sort.base_die_size || 6;
+  const count   = sort.base_die_count || 1;
+  const flat    = sort.flat_bonus || 0;
+  const addPrim = sort.add_primary !== false;
+  const primary = addPrim ? (fiche.attributs[fiche.primary] || 0) : 0;
+
+  /* Les sorts ne ratent pas et n'explosent pas : on lance simplement les dés. */
+  const rolls = [];
+  for(let i = 0; i < count; i++) rolls.push(rollD(size));
+  const sum = rolls.reduce((a,b) => a+b, 0);
+  const rawDamage = sum + flat + primary;
+
+  const afterDef = Math.max(0, rawDamage - opp.def);
+  const defBroken = opp.def > 0 && rawDamage >= opp.def;
+
+  let finalDamage = afterDef;
+  if(opp.affinity === 'weak')        finalDamage = afterDef * 2;
+  else if(opp.affinity === 'resist') finalDamage = Math.floor(afterDef / 2);
+  else if(opp.affinity === 'immune') finalDamage = 0;
+
+  return { rolls, flat, primary, primaryAttr: fiche.primary, rawDamage, afterDef, defBroken, affinity: opp.affinity, finalDamage };
+}
+
+function showSpellResult(sort, opp, result){
+  initAudio(); sfxConfirm();
+  const size = sort.base_die_size || 6;
+  openRollModal('BATTLECAST · ' + (sort.titre || ''),
+    'DÉGÂTS ' + (sort.base_die_count || 1) + 'd' + size, sort.damage_type || '—');
+
+  const tray = $('rmTray');
+  const STAG = 180, ROLL = 600;
+  result.rolls.forEach((v, i) => spawnDie(tray, v, i * STAG, ROLL, size));
+  result.rolls.forEach((v, i) => setTimeout(() => beep(660 + i*100, .07), i * STAG + ROLL + 140));
+
+  const lastSettle = result.rolls.length * STAG + ROLL + 220;
+  setTimeout(() => {
+    let bd = '<b>' + result.rolls.join(' + ') + '</b>';
+    if(result.flat) bd += ' + ' + result.flat;
+    if(result.primary) bd += ' + ' + result.primary + ' (' + result.primaryAttr + ')';
+    bd += ' = <b>' + result.rawDamage + '</b>';
+    if(opp.def) bd += '<br>DEF −' + opp.def + ' → <b>' + result.afterDef + '</b>';
+    if(result.defBroken) bd += ' <span style="color:#ff8a6a">✦ DEF BROKEN</span>';
+    if(result.affinity === 'weak')        bd += '<br>Weak ×2 → <b>' + result.finalDamage + '</b>';
+    else if(result.affinity === 'resist') bd += '<br>Resist ÷2 → <b>' + result.finalDamage + '</b>';
+    else if(result.affinity === 'immune') bd += '<br>Immune → <b>0</b>';
+
+    const res = $('rmRes');
+    res.className = 'roll-res-big banner';
+    res.innerHTML = result.finalDamage + ' DÉGÂTS<small>' + bd + '</small>';
+    $('rmOk').classList.add('ready');
+
+    logRoll('Battlecast · ' + (sort.titre || ''),
+      result.finalDamage + ' dégâts' + (result.defBroken ? ' · DEF Broken' : ''));
+
+    const lt = $('rolltray');
+    lt.innerHTML = '<span class="q">Battlecast · ' + escapeHtml(sort.titre || '') + '</span>';
+    result.rolls.forEach(v => {
+      const fc = document.createElement('span');
+      fc.className = 'face';
+      fc.textContent = v;
+      lt.appendChild(fc);
+    });
+    $('rollres').className = 'res';
+    $('rollres').innerHTML = result.finalDamage + ' dégâts <span>· Battlecast</span>';
+  }, lastSettle + 600);
 }
 
 /* -------------------- Mélodies (auto-déduction MP) --------------------- */
@@ -2452,6 +2846,7 @@ function init(){
   applyOpts();
   wire();
   wireRP();
+  wireBase();
   renderAide();
   window.addEventListener('resize', () => { if(combatModeActive) syncCombatPadding(); });
   switchPage('fiche');

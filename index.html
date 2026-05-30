@@ -200,6 +200,64 @@
         <div id="aideList"></div>
       </div>
 
+      <!-- ====== PAGE BASE DE GUILDE ====== -->
+      <div class="page" id="page-base">
+        <button class="subpage-back" onclick="switchPage('plus')">‹ RETOUR</button>
+        <div class="panel">
+          <div class="section-h">BASE <span class="clk-count" id="baseKindLabel"></span></div>
+          <div class="base-kind" id="baseKind"></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-h">TRÉSOR &amp; MATÉRIAUX</div>
+          <div class="base-treasury">
+            <span class="bt-label">DRAVIKS</span>
+            <span class="bt-val" id="baseTreasury">0</span>
+            <span class="bt-btns">
+              <button onclick="adjBaseTreasury(-10)">−10</button>
+              <button onclick="adjBaseTreasury(-1)">−</button>
+              <button onclick="adjBaseTreasury(1)">+</button>
+              <button onclick="adjBaseTreasury(10)">+10</button>
+            </span>
+          </div>
+          <div class="base-mats" id="baseMats"></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-h">SALLES <span class="clk-count" id="baseRoomCount"></span></div>
+          <div id="baseRooms"></div>
+          <button class="clk-add-btn" onclick="openRoomModal()">+ AJOUTER UNE SALLE</button>
+        </div>
+
+        <div class="panel" id="baseCropsPanel">
+          <div class="section-h">CULTURES <span class="clk-count" id="baseCropCount"></span></div>
+          <div class="clk-intro">Décompte les Downtimes jusqu'à la récolte. Touche <b>−1 Downtime</b> à chaque période de repos prolongé.</div>
+          <div id="baseCrops"></div>
+          <button class="clk-add-btn" onclick="openCropModal()">+ AJOUTER UNE CULTURE</button>
+        </div>
+
+        <div class="panel collapse collapsed" id="baseDetails">
+          <button class="collapse-h" onclick="toggleCollapse('baseDetails')">
+            <span class="collapse-caret">▾</span>
+            <span class="section-h">DÉTAILS DE LA BASE</span>
+          </button>
+          <div class="collapse-body">
+            <label class="rp-label">Nom</label>
+            <input class="base-input" id="baseName" placeholder="Le Repaire du Corbeau…">
+            <label class="rp-label">Fondateur</label>
+            <input class="base-input" id="baseFounder" placeholder="Qui l'a fondée…">
+            <label class="rp-label">Spécialité</label>
+            <input class="base-input" id="baseSpecialty" placeholder="Forge, alchimie, contrebande…">
+            <label class="rp-label">Réputation</label>
+            <input class="base-input" id="baseReputation" placeholder="Comment on la perçoit…">
+            <label class="rp-label">Particularité</label>
+            <input class="base-input" id="baseQuirk" placeholder="Un détail qui la rend unique…">
+            <label class="rp-label">Notes</label>
+            <textarea class="rp-area" id="baseNotes" placeholder="Tout le reste…"></textarea>
+          </div>
+        </div>
+      </div>
+
       <div class="foot" id="foot">LOA Compagnon</div>
     </main>
 
@@ -433,6 +491,38 @@
     </div>
   </div>
 
+  <!-- Modal SALLE -->
+  <div class="overlay" id="roomModal">
+    <div class="modal-box">
+      <h3 id="roomModalTitle">NOUVELLE SALLE</h3>
+      <label>Nom</label>
+      <input type="text" id="roomName" placeholder="Forge, Bibliothèque, Salle d'entraînement…">
+      <label>Notes (effet, niveau, ce qu'il manque…)</label>
+      <textarea id="roomNote" placeholder="Ce que la salle apporte, son niveau, les matériaux requis…"></textarea>
+      <div class="actions-row">
+        <button class="btn danger" id="roomDeleteBtn" onclick="deleteRoomFromModal()" style="display:none">SUPPRIMER</button>
+        <button class="btn" onclick="closeModal('roomModal')">ANNULER</button>
+        <button class="btn" onclick="saveRoom()">ENREGISTRER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal CULTURE -->
+  <div class="overlay" id="cropModal">
+    <div class="modal-box">
+      <h3 id="cropModalTitle">NOUVELLE CULTURE</h3>
+      <label>Culture</label>
+      <input type="text" id="cropName" placeholder="Blé, Racine-de-foyer, Pétale-de-lune…">
+      <label>Récolte dans (Downtimes)</label>
+      <input type="number" id="cropDt" value="2" min="0" max="30">
+      <div class="actions-row">
+        <button class="btn danger" id="cropDeleteBtn" onclick="deleteCropFromModal()" style="display:none">SUPPRIMER</button>
+        <button class="btn" onclick="closeModal('cropModal')">ANNULER</button>
+        <button class="btn" onclick="saveCrop()">ENREGISTRER</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal niveau supérieur -->
   <div class="overlay" id="lvlOverlay" onclick="this.classList.remove('show')">
     <div class="modal-box" onclick="event.stopPropagation()">
@@ -486,8 +576,27 @@
       <div class="color-picker" id="colorPicker"></div>
 
       <div id="itemSortFields" style="display:none">
-        <label>Aspect</label>
-        <input type="text" id="itemAspect" placeholder="Pyromancy, Necromancy, Verum…">
+        <div class="row">
+          <div>
+            <label>Mode</label>
+            <select id="itemSMode">
+              <option value="battlecast">Battlecast (cible · dégâts directs)</option>
+              <option value="fieldcast">Fieldcast (zone · Check)</option>
+            </select>
+          </div>
+          <div>
+            <label>Aspect</label>
+            <select id="itemAspect">
+              <option value="">— Aucun —</option>
+              <option>Arcanum</option>
+              <option>Divine</option>
+              <option>Inheric</option>
+              <option>Radiant</option>
+              <option>Untamed</option>
+              <option>Voidcraft</option>
+            </select>
+          </div>
+        </div>
         <div class="row">
           <div>
             <label>Coût SP</label>
@@ -496,6 +605,49 @@
           <div>
             <label>Coût AP</label>
             <input type="number" id="itemAP" value="0" min="0">
+          </div>
+        </div>
+        <label>Dégâts <span style="opacity:.6">— Battlecast, ou à appliquer sur réussite d'un Fieldcast</span></label>
+        <div class="row">
+          <div>
+            <label style="font-size:7px;margin-top:0">Nb dés</label>
+            <input type="number" id="itemSDmgCount" value="1" min="1" max="10">
+          </div>
+          <div>
+            <label style="font-size:7px;margin-top:0">Taille</label>
+            <select id="itemSDmgSize">
+              <option value="4">d4</option>
+              <option value="6" selected>d6</option>
+              <option value="8">d8</option>
+              <option value="10">d10</option>
+              <option value="12">d12</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:7px;margin-top:0">Bonus plat</label>
+            <input type="number" id="itemSFlat" value="0" min="0">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>+ Primary ?</label>
+            <select id="itemSAddPrimary">
+              <option value="1" selected>Oui</option>
+              <option value="0">Non</option>
+            </select>
+          </div>
+          <div>
+            <label>Type de dégâts</label>
+            <select id="itemSDmgType">
+              <option>Physical</option>
+              <option>Cold</option>
+              <option>Fire</option>
+              <option>Light</option>
+              <option>Psychic</option>
+              <option>Void</option>
+              <option>Thunder</option>
+              <option>Wild</option>
+            </select>
           </div>
         </div>
       </div>
@@ -642,16 +794,17 @@
       <h3 id="atkTitle">ATTAQUER</h3>
       <div class="atk-weapon-info" id="atkWeaponInfo">—</div>
 
-      <label>Type d'arme adverse</label>
-      <div class="atk-opp-type" id="atkOppTypes">
-        <button type="button" class="opp-type-btn active" data-type="">Aucune</button>
-        <button type="button" class="opp-type-btn" data-type="Blade">Blade</button>
-        <button type="button" class="opp-type-btn" data-type="Breaker">Breaker</button>
-        <button type="button" class="opp-type-btn" data-type="Lance">Lance</button>
-        <button type="button" class="opp-type-btn" data-type="Bow">Bow</button>
+      <div id="atkTriangleBlock">
+        <label>Type d'arme adverse</label>
+        <div class="atk-opp-type" id="atkOppTypes">
+          <button type="button" class="opp-type-btn active" data-type="">Aucune</button>
+          <button type="button" class="opp-type-btn" data-type="Blade">Blade</button>
+          <button type="button" class="opp-type-btn" data-type="Breaker">Breaker</button>
+          <button type="button" class="opp-type-btn" data-type="Lance">Lance</button>
+          <button type="button" class="opp-type-btn" data-type="Bow">Bow</button>
+        </div>
+        <div class="atk-triangle equal" id="atkTriangle">—</div>
       </div>
-
-      <div class="atk-triangle equal" id="atkTriangle">—</div>
 
       <div class="row">
         <div>
@@ -671,7 +824,7 @@
 
       <div class="actions-row">
         <button class="btn" onclick="closeModal('attackModal')">ANNULER</button>
-        <button class="btn" onclick="executeAttack()">⚔ ATTAQUER</button>
+        <button class="btn" id="atkConfirmBtn" onclick="executeAttack()">⚔ ATTAQUER</button>
       </div>
     </div>
   </div>
